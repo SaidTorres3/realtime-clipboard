@@ -2,6 +2,10 @@
 
 This is a real-time web application built with Node.js, Express, Multer, and Socket.IO. The application allows users to share text and files between multiple devices without requiring login or registration. The shared text and files are updated automatically in real-time between devices. It is intended for fast sharing text and files between multiple devices.
 
+<img src="/images/frontend.png" width="700">
+
+<img src="/images/batch.png" width="700">
+
 ## Features
 
 - Directly access the clipboard, no rooms or login required.
