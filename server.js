@@ -42,6 +42,37 @@ app.get('/', (req, res) => {
   }
 });
 
+app.get('/files', (req, res) => {
+  fs.readdir('uploads/', (err, files) => {
+    if (req.query.json) {
+      res.json(files);
+    } else {
+      res.send(files.join('\n') + '\n');
+    }
+  });
+});
+
+app.get('/files/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const filepath = path.join(__dirname, 'uploads', filename);
+
+  // Check if file exists
+  fs.access(filepath, fs.constants.F_OK, (err) => {
+    if (err) {
+      return res.status(404).send('File not found');
+    }
+
+    res.download(filepath, (err) => {
+      if (err) {
+        console.error('Error downloading the file:', err);
+        if (!res.headersSent) {
+          res.status(500).send('Error downloading the file');
+        }
+      }
+    });
+  });
+});
+
 app.post('/upload', upload.single('file'), (req, res) => {
   io.emit('fileUpdate');
   res.redirect('/');
