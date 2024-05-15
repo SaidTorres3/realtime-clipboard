@@ -10,8 +10,8 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/');
   },
-  filename: (req, file, cb) => {
-    const originalName = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_'); // Sanitize filename
+filename: (req, file, cb) => {
+    const originalName = file.originalname.replace(/\.[^.]+$/, ''); // Remove file extension
     const randomSuffix = Date.now();
     cb(null, `${originalName}-${randomSuffix}${path.extname(file.originalname)}`);
   }
