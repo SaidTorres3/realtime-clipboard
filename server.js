@@ -31,9 +31,15 @@ app.use(express.urlencoded({ extended: true })); // Add this line to parse URL-e
 let sharedText = '';
 
 app.get('/', (req, res) => {
-  fs.readdir('uploads/', (err, files) => {
-    res.render('index', { files });
-  });
+  // Check if request is from curl or other command-line tool
+  const userAgent = req.headers['user-agent'] || '';
+  if (userAgent.includes('curl') || userAgent.includes('wget') || req.query.textonly) {
+    res.send(sharedText + '\n');
+  } else {
+    fs.readdir('uploads/', (err, files) => {
+      res.render('index', { files });
+    });
+  }
 });
 
 app.post('/upload', upload.single('file'), (req, res) => {
