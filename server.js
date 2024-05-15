@@ -102,6 +102,6 @@ io.on('connection', (socket) => {
   });
 });
 
-server.listen(3000, '0.0.0.0', () => {
+server.listen(8088, '0.0.0.0', () => {
   console.log('Server is running on http://0.0.0.0:8088');
 });
