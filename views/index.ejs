@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Real-Time Share App</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+      body {
+        font-family: "Arial", sans-serif;
+        background: #1d1f21;
+        color: #c5c8c6;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+      }
+      h2 {
+        color: #81a2be;
+        margin: 0px;
+      }
+      #textarea {
+        width: 80%;
+        height: 600px;
+        padding: 10px;
+        margin: 20px 0;
+        border: none;
+        border-radius: 5px;
+        background: #282a2e;
+        color: #c5c8c6;
+        font-size: 16px;
+        resize: none;
+      }
+      form {
+        margin: 20px 0;
+      }
+      input[type="file"] {
+        margin-bottom: 10px;
+      }
+      button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        background: #81a2be;
+        color: #1d1f21;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+      }
+      button:hover {
+        background: #5f7a99;
+      }
+      .file-list {
+        list-style-type: none;
+        padding: 0;
+        width: 80%;
+        height: 400px;
+        overflow-y: auto;
+      }
+      .file-list li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #282a2e;
+        padding: 10px;
+        margin: 5px 0;
+        border-radius: 5px;
+      }
+      .file-list li a {
+        color: #c5c8c6;
+        text-decoration: none;
+        transition: color 0.3s ease;
+      }
+      .file-list li a:hover {
+        color: #81a2be;
+      }
+      .file-list li form {
+        display: inline;
+      }
+      .file-list li form button {
+        background: #cc6666;
+        color: #1d1f21;
+      }
+      .file-list li form button:hover {
+        background: #a54b4b;
+      }
+    </style>
+  </head>
+  <body>
+    <textarea
+      id="textarea"
+      style="resize: vertical"
+      placeholder="Type something..."
+    ></textarea>
+    <h2>Upload File</h2>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+      <input type="file" name="file" required />
+      <button type="submit">Upload</button>
+    </form>
+    <h2>Files</h2>
+    <ul class="file-list" id="file-list">
+      <% files.forEach(file => { %>
+      <li>
+        <a href="/uploads/<%= file %>" download><%= file %></a>
+        <form action="/delete" method="post" style="display: inline">
+          <input type="hidden" name="filename" value="<%= file %>" />
+          <button type="submit">Delete</button>
+        </form>
+      </li>
+      <% }) %>
+    </ul>
+
+    <script>
+      const socket = io();
+      const textarea = document.getElementById("textarea");
+      const fileList = document.getElementById("file-list");
+
+      socket.on("textUpdate", (text) => {
+        textarea.value = text;
+      });
+
+      textarea.addEventListener("input", () => {
+        socket.emit("textChange", textarea.value);
+      });
+
+      socket.on("fileUpdate", () => {
+        fetch("/")
+          .then((response) => response.text())
+          .then((html) => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, "text/html");
+            fileList.innerHTML = doc.getElementById("file-list").innerHTML;
+          });
+      });
+    </script>
+  </body>
+</html>
