@@ -195,6 +195,14 @@
       document.addEventListener("dragover", (event) => {
         event.preventDefault();
       });
+
+      textarea.addEventListener("dragover", (event) => {
+        event.stopPropagation();
+      });
+
+      textarea.addEventListener("drop", (event) => {
+        event.stopPropagation();
+      });
     </script>
   </body>
 </html>
