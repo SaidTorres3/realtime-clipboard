@@ -6,7 +6,8 @@ const path = require('path');
 const fs = require('fs');
 const minimist = require('minimist');
 const os = require('os');
-const bodyParser = require('body-parser'); // Add this line
+const bodyParser = require('body-parser');
+const sanitizeFilename = require('sanitize-filename');
 
 // Parse command-line arguments
 const args = minimist(process.argv.slice(2));
@@ -18,13 +19,13 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
 }
 
-// Setup storage for multer with original filename
+// Setup storage for multer with sanitized filename
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const originalName = file.originalname.replace(/\.[^.]+$/, ''); // Remove file extension
+    const originalName = sanitizeFilename(file.originalname.replace(/\.[^.]+$/, '')); // Sanitize filename
     const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
     cb(null, `${originalName}-${randomSuffix}${path.extname(file.originalname)}`);
   }
@@ -38,7 +39,7 @@ const io = socketIo(server);
 
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(uploadsDir));
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.text());
 
@@ -69,7 +70,7 @@ app.get('/', (req, res) => {
   if (userAgent.includes('curl') || userAgent.includes('wget') || req.query.textonly) {
     res.send(sharedText + '\n');
   } else {
-    fs.readdir('uploads/', (err, files) => {
+    fs.readdir(uploadsDir, (err, files) => {
       res.render('index', { files });
     });
   }
@@ -84,7 +85,7 @@ app.put('/', (req, res) => {
 });
 
 app.get('/files', (req, res) => {
-  fs.readdir('uploads/', (err, files) => {
+  fs.readdir(uploadsDir, (err, files) => {
     if (req.query.json) {
       res.json(files);
     } else {
@@ -94,8 +95,8 @@ app.get('/files', (req, res) => {
 });
 
 app.get('/files/:filename', (req, res) => {
-  const filename = req.params.filename;
-  const filepath = path.join(__dirname, 'uploads', filename);
+  const filename = sanitizeFilename(req.params.filename);
+  const filepath = path.join(uploadsDir, filename);
 
   fs.access(filepath, fs.constants.F_OK, (err) => {
     if (err) {
@@ -119,8 +120,8 @@ app.post('/upload', upload.array('files', 10), (req, res) => {
 });
 
 app.delete('/files/:filename', (req, res) => {
-  const filename = req.params.filename;
-  const filePath = path.join(__dirname, 'uploads', filename);
+  const filename = sanitizeFilename(req.params.filename);
+  const filePath = path.join(uploadsDir, filename);
 
   fs.unlink(filePath, (err) => {
     if (err) {
@@ -150,7 +151,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('fileUpdate', () => {
-    fs.readdir('uploads/', (err, files) => {
+    fs.readdir(uploadsDir, (err, files) => {
       io.emit('fileList', files);
     });
   });
