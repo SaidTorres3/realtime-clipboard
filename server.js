@@ -4,13 +4,19 @@ const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const fs = require('fs');
+const minimist = require('minimist');
+
+// Parse command-line arguments
+const args = minimist(process.argv.slice(2));
+const host = args.a || '0.0.0.0';
+const port = args.p || 8088;
 
 // Setup storage for multer with original filename
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/');
   },
-filename: (req, file, cb) => {
+  filename: (req, file, cb) => {
     const originalName = file.originalname.replace(/\.[^.]+$/, ''); // Remove file extension
     const randomSuffix = Date.now();
     cb(null, `${originalName}-${randomSuffix}${path.extname(file.originalname)}`);
@@ -26,12 +32,11 @@ const io = socketIo(server);
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use(express.urlencoded({ extended: true })); // Add this line to parse URL-encoded bodies
+app.use(express.urlencoded({ extended: true }));
 
 let sharedText = '';
 
 app.get('/', (req, res) => {
-  // Check if request is from curl or other command-line tool
   const userAgent = req.headers['user-agent'] || '';
   if (userAgent.includes('curl') || userAgent.includes('wget') || req.query.textonly) {
     res.send(sharedText + '\n');
@@ -56,7 +61,6 @@ app.get('/files/:filename', (req, res) => {
   const filename = req.params.filename;
   const filepath = path.join(__dirname, 'uploads', filename);
 
-  // Check if file exists
   fs.access(filepath, fs.constants.F_OK, (err) => {
     if (err) {
       return res.status(404).send('File not found');
@@ -102,6 +106,6 @@ io.on('connection', (socket) => {
   });
 });
 
-server.listen(8088, '0.0.0.0', () => {
-  console.log('Server is running on http://localhost:8088');
+server.listen(port, host, () => {
+  console.log(`Server is running on http://${host}:${port}`);
 });

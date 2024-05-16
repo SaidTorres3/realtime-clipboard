@@ -2,9 +2,9 @@
 
 This is a real-time web application built with Node.js, Express, Multer, and Socket.IO. The application allows users to share text and files between multiple devices without requiring login or registration. The shared text and files are updated automatically in real-time between devices. It is intended for fast sharing text and files between multiple devices.
 
-<img src="/images/frontend.png" width="700">
+<img src="/images/frontend.png" width="800">
 
-<img src="/images/batch.png" width="700">
+<img src="/images/batch.png" width="800">
 
 ## Features
 
@@ -36,7 +36,7 @@ This is a real-time web application built with Node.js, Express, Multer, and Soc
   npm install
   ```
 
-3. Create uploads folder:
+3. Create the uploads folder:
 
   ```bash
   mkdir uploads
@@ -50,7 +50,15 @@ This is a real-time web application built with Node.js, Express, Multer, and Soc
   node server.js
   ```
 
-2. Open your web browser and navigate to `http://localhost:8088` to use the application. (Replace `localhost` with the IP of your machine in order to see it another device)
+  The default host is `0.0.0.0` and the default port is `8088`.
+
+  To specify a custom host and port, use the following command:
+
+  ```bash
+  node server.js -a 0.0.0.0 -p 8088
+  ```
+
+2. Open your web browser and navigate to `http://localhost:8088` to use the application. (Replace `localhost` with the IP of your machine to see it on another device)
 
   - To share text, simply type in the textarea, and it will be updated in real-time across all connected devices.
   - To upload a file, use the file upload form. The uploaded file will be listed and available for download or deletion.
