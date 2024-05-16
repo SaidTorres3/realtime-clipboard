@@ -67,6 +67,14 @@ To get the shared text using curl:
   curl http://localhost:8088
   ```
 
+### Write Shared Text
+
+To write the shared text using curl:
+
+  ```bash
+  curl -X PUT -d "your text" -H "Content-Type: text/plain" http://localhost:8088
+  ```
+
 ### List Files
 
 To list the uploaded files:

@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const minimist = require('minimist');
 const os = require('os');
+const bodyParser = require('body-parser'); // Add this line
 
 // Parse command-line arguments
 const args = minimist(process.argv.slice(2));
@@ -39,6 +40,7 @@ app.set('view engine', 'ejs');
 app.use(express.static('public'));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.urlencoded({ extended: true }));
+app.use(bodyParser.text());
 
 let sharedText = '';
 
@@ -71,6 +73,14 @@ app.get('/', (req, res) => {
       res.render('index', { files });
     });
   }
+});
+
+app.put('/', (req, res) => {
+  const newText = req.body;
+  sharedText = newText;
+  writeSharedTextToFile(newText);
+  io.emit('textUpdate', newText);
+  res.status(200).send('Text updated successfully');
 });
 
 app.get('/files', (req, res) => {
