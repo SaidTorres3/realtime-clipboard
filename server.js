@@ -110,12 +110,26 @@ app.post('/upload', upload.single('file'), (req, res) => {
 
 app.post('/delete', (req, res) => {
   const { filename } = req.body;
-  fs.unlink(path.join(__dirname, 'uploads', filename), (err) => {
-    if (err) throw err;
-    io.emit('fileUpdate');
-    res.redirect('/');
+  const filePath = path.join(__dirname, 'uploads', filename);
+
+  fs.unlink(filePath, (err) => {
+    if (err) {
+      if (err.code === 'ENOENT') {
+        // File doesn't exist
+        console.warn(`File not found: ${filePath}`);
+        res.status(404).send('File not found');
+      } else {
+        // Other errors
+        console.error('Error deleting the file:', err);
+        res.status(500).send('Error deleting the file');
+      }
+    } else {
+      io.emit('fileUpdate');
+      res.redirect('/');
+    }
   });
 });
+
 
 io.on('connection', (socket) => {
   socket.emit('textUpdate', sharedText);

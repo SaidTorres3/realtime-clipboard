@@ -116,12 +116,9 @@
     <h2>Files</h2>
     <ul class="file-list" id="file-list">
       <% files.forEach(file => { %>
-      <li>
+      <li data-filename="<%= file %>">
         <a href="/uploads/<%= file %>" download><%= file %></a>
-        <form action="/delete" method="post" style="display: inline">
-          <input type="hidden" name="filename" value="<%= file %>" />
-          <button type="submit">Delete</button>
-        </form>
+        <button type="button" class="delete-button">Delete</button>
       </li>
       <% }) %>
     </ul>
@@ -151,6 +148,7 @@
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, "text/html");
             fileList.innerHTML = doc.getElementById("file-list").innerHTML;
+            attachDeleteEventListeners(); // Re-attach event listeners after updating the file list
           });
       });
 
@@ -203,6 +201,33 @@
       textarea.addEventListener("drop", (event) => {
         event.stopPropagation();
       });
+
+      function attachDeleteEventListeners() {
+        const deleteButtons = document.querySelectorAll('.delete-button');
+        deleteButtons.forEach(button => {
+          button.addEventListener('click', () => {
+            const li = button.closest('li');
+            const filename = li.getAttribute('data-filename');
+            
+            fetch('/delete', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: new URLSearchParams({ filename })
+            }).then(response => {
+              if (response.ok) {
+                li.remove();
+                socket.emit('fileUpdate');
+              } else {
+                console.error('Failed to delete file');
+              }
+            });
+          });
+        });
+      }
+
+      attachDeleteEventListeners(); // Attach event listeners initially
     </script>
   </body>
 </html>
