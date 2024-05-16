@@ -41,7 +41,6 @@ app.use(express.urlencoded({ extended: true }));
 
 let sharedText = '';
 
-// Function to read sharedText from file
 const readSharedTextFromFile = () => {
   try {
     sharedText = fs.readFileSync('sharedText.txt', 'utf8');
@@ -56,12 +55,10 @@ const readSharedTextFromFile = () => {
   }
 };
 
-// Function to write sharedText to file
 const writeSharedTextToFile = (text) => {
   fs.writeFileSync('sharedText.txt', text, 'utf8');
 };
 
-// Read the sharedText when the server starts
 readSharedTextFromFile();
 
 app.get('/', (req, res) => {
@@ -137,4 +134,7 @@ io.on('connection', (socket) => {
 
 server.listen(port, host, () => {
   console.log(`Server is running on http://${host}:${port}`);
+  if (host === '0.0.0.0') {
+    console.log(`Access it using http://localhost:${port}`);
+  }
 });
