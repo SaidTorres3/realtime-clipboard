@@ -62,7 +62,7 @@ This is a real-time web application built with Node.js, Express, Multer, and Soc
 To get the shared text using curl:
 
   ```bash
-  curl http://0.0.0.0:8088
+  curl http://localhost:8088
   ```
 
 ### List Files
@@ -70,7 +70,7 @@ To get the shared text using curl:
 To list the uploaded files:
 
   ```bash
-  curl http://0.0.0.0:8088/files
+  curl http://localhost:8088/files
   ```
 
 ### Download a Specific File
@@ -78,7 +78,7 @@ To list the uploaded files:
 To download a specific file:
 
   ```bash
-  curl http://0.0.0.0:8088/files/yourfilename.ext --output yourfilename.ext
+  curl http://localhost:8088/files/yourfilename.ext --output yourfilename.ext
   ```
 
 ### Upload a File
