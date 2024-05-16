@@ -25,35 +25,35 @@ This is a real-time web application built with Node.js, Express, Multer, and Soc
 
 1. Clone the repository:
 
-    ```bash
-    git clone https://github.com/SaidTorres3/realtime-clipboard.git
-    cd realtime-share-app
-    ```
+  ```bash
+  git clone https://github.com/SaidTorres3/realtime-clipboard.git
+  cd realtime-share-app
+  ```
 
 2. Install the dependencies:
 
-    ```bash
-    npm install
-    ```
+  ```bash
+  npm install
+  ```
 
 3. Create uploads folder:
 
-    ```bash
-    mkdir uploads
-    ```
+  ```bash
+  mkdir uploads
+  ```
 
 ## Usage
 
 1. Start the server:
 
-    ```bash
-    node server.js
-    ```
+  ```bash
+  node server.js
+  ```
 
 2. Open your web browser and navigate to `http://localhost:8088` to use the application. (Replace `localhost` with the IP of your machine in order to see it another device)
 
-    - To share text, simply type in the textarea, and it will be updated in real-time across all connected devices.
-    - To upload a file, use the file upload form. The uploaded file will be listed and available for download or deletion.
+  - To share text, simply type in the textarea, and it will be updated in real-time across all connected devices.
+  - To upload a file, use the file upload form. The uploaded file will be listed and available for download or deletion.
 
 ## API
 
@@ -61,25 +61,25 @@ This is a real-time web application built with Node.js, Express, Multer, and Soc
 
 To get the shared text using curl:
 
-    ```bash
-    curl http://0.0.0.0:8088
-    ```
+  ```bash
+  curl http://0.0.0.0:8088
+  ```
 
 ### List Files
 
 To list the uploaded files:
 
-    ```bash
-    curl http://0.0.0.0:8088/files
-    ```
+  ```bash
+  curl http://0.0.0.0:8088/files
+  ```
 
 ### Download a Specific File
 
 To download a specific file:
 
-    ```bash
-    curl http://0.0.0.0:8088/files/yourfilename.ext --output yourfilename.ext
-    ```
+  ```bash
+  curl http://0.0.0.0:8088/files/yourfilename.ext --output yourfilename.ext
+  ```
 
 ### Upload a File
 
