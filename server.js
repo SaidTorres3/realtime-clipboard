@@ -36,6 +36,29 @@ app.use(express.urlencoded({ extended: true }));
 
 let sharedText = '';
 
+// Function to read sharedText from file
+const readSharedTextFromFile = () => {
+  try {
+    sharedText = fs.readFileSync('sharedText.txt', 'utf8');
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      fs.writeFileSync('sharedText.txt', '', 'utf8');
+      sharedText = '';
+    } else {
+      console.error('Error reading sharedText file:', err);
+      sharedText = '';
+    }
+  }
+};
+
+// Function to write sharedText to file
+const writeSharedTextToFile = (text) => {
+  fs.writeFileSync('sharedText.txt', text, 'utf8');
+};
+
+// Read the sharedText when the server starts
+readSharedTextFromFile();
+
 app.get('/', (req, res) => {
   const userAgent = req.headers['user-agent'] || '';
   if (userAgent.includes('curl') || userAgent.includes('wget') || req.query.textonly) {
@@ -96,6 +119,7 @@ io.on('connection', (socket) => {
 
   socket.on('textChange', (text) => {
     sharedText = text;
+    writeSharedTextToFile(text);
     socket.broadcast.emit('textUpdate', text);
   });
 
