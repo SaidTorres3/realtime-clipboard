@@ -36,12 +36,6 @@ This is a real-time web application built with Node.js, Express, Multer, and Soc
   npm install
   ```
 
-3. Create the uploads folder:
-
-  ```bash
-  mkdir uploads
-  ```
-
 ## Usage
 
 1. Start the server:

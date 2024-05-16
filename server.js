@@ -11,6 +11,11 @@ const args = minimist(process.argv.slice(2));
 const host = args.a || '0.0.0.0';
 const port = args.p || 8088;
 
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+
 // Setup storage for multer with original filename
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
