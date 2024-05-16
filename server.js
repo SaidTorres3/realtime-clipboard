@@ -24,7 +24,7 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const originalName = file.originalname.replace(/\.[^.]+$/, ''); // Remove file extension
-    const randomSuffix = Date.now();
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
     cb(null, `${originalName}-${randomSuffix}${path.extname(file.originalname)}`);
   }
 });
