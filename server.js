@@ -108,8 +108,8 @@ app.post('/upload', upload.array('files', 10), (req, res) => {
   res.redirect('/');
 });
 
-app.post('/delete', (req, res) => {
-  const { filename } = req.body;
+app.delete('/files/:filename', (req, res) => {
+  const filename = req.params.filename;
   const filePath = path.join(__dirname, 'uploads', filename);
 
   fs.unlink(filePath, (err) => {
@@ -125,7 +125,7 @@ app.post('/delete', (req, res) => {
       }
     } else {
       io.emit('fileUpdate');
-      res.redirect('/');
+      res.status(200).send('File deleted successfully');
     }
   });
 });

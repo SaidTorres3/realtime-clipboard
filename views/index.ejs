@@ -209,12 +209,8 @@
             const li = button.closest('li');
             const filename = li.getAttribute('data-filename');
             
-            fetch('/delete', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-              },
-              body: new URLSearchParams({ filename })
+            fetch(`/files/${filename}`, {
+              method: 'DELETE'
             }).then(response => {
               if (response.ok) {
                 li.remove();
