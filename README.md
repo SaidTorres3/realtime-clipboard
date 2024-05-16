@@ -50,7 +50,7 @@ This is a real-time web application built with Node.js, Express, Multer, and Soc
     node server.js
     ```
 
-2. Open your web browser and navigate to `http://0.0.0.0:8088` to use the application.
+2. Open your web browser and navigate to `http://localhost:8088` to use the application. (Replace `localhost` with the IP of your machine in order to see it another device)
 
     - To share text, simply type in the textarea, and it will be updated in real-time across all connected devices.
     - To upload a file, use the file upload form. The uploaded file will be listed and available for download or deletion.
