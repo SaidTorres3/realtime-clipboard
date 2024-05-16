@@ -5,6 +5,7 @@ const socketIo = require('socket.io');
 const path = require('path');
 const fs = require('fs');
 const minimist = require('minimist');
+const os = require('os');  // Add this line to include the os module
 
 // Parse command-line arguments
 const args = minimist(process.argv.slice(2));
@@ -132,9 +133,22 @@ io.on('connection', (socket) => {
   });
 });
 
+const getLocalIPAddress = () => {
+  const interfaces = os.networkInterfaces();
+  for (const iface of Object.values(interfaces)) {
+    for (const { family, address, internal } of iface) {
+      if (family === 'IPv4' && !internal) {
+        return address;
+      }
+    }
+  }
+  return 'localhost';
+};
+
 server.listen(port, host, () => {
   console.log(`Server is running on http://${host}:${port}`);
   if (host === '0.0.0.0') {
-    console.log(`Access it using http://localhost:${port}`);
+    const localIP = getLocalIPAddress();
+    console.log(`Access it using http://${localIP}:${port}`);
   }
 });
