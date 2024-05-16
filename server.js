@@ -5,7 +5,7 @@ const socketIo = require('socket.io');
 const path = require('path');
 const fs = require('fs');
 const minimist = require('minimist');
-const os = require('os');  // Add this line to include the os module
+const os = require('os');
 
 // Parse command-line arguments
 const args = minimist(process.argv.slice(2));
@@ -103,7 +103,7 @@ app.get('/files/:filename', (req, res) => {
   });
 });
 
-app.post('/upload', upload.single('file'), (req, res) => {
+app.post('/upload', upload.array('files', 10), (req, res) => {
   io.emit('fileUpdate');
   res.redirect('/');
 });
@@ -129,7 +129,6 @@ app.post('/delete', (req, res) => {
     }
   });
 });
-
 
 io.on('connection', (socket) => {
   socket.emit('textUpdate', sharedText);
