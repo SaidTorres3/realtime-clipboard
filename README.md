@@ -85,11 +85,15 @@ To download a specific file:
 
 ### Upload a File
 
-To upload a file using the form on the web page.
+ ```bash
+  curl -F "file=@yourfilename.ext" http://localhost:8088/upload
+  ```
 
 ### Delete a File
 
-To delete a file using the form on the web page.
+  ```bash
+  curl -X DELETE http://localhost:8088/files/yourfilename.ext
+  ```
 
 ## File Structure
 
