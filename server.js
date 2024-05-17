@@ -19,13 +19,19 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
 }
 
+const removeAccents = (str) => {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '_');
+};
+
 // Setup storage for multer with sanitized filename
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const originalName = sanitizeFilename(file.originalname.replace(/\.[^.]+$/, '')).replace(/ /g, '_');
+    let originalName = file.originalname.replace(/\.[^.]+$/, ''); // Remove file extension
+    originalName = removeAccents(originalName); // Remove accents and special characters
+    originalName = sanitizeFilename(originalName); // Sanitize the filename
     const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
     cb(null, `${originalName}-${randomSuffix}${path.extname(file.originalname)}`);
   }
