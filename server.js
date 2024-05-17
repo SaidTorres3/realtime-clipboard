@@ -25,7 +25,7 @@ const storage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const originalName = sanitizeFilename(file.originalname.replace(/\.[^.]+$/, '')); // Sanitize filename
+    const originalName = sanitizeFilename(file.originalname.replace(/\.[^.]+$/, '')).replace(/ /g, '_');
     const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
     cb(null, `${originalName}-${randomSuffix}${path.extname(file.originalname)}`);
   }
