@@ -37,6 +37,18 @@
         flex-direction: column;
         max-height: 100%;
         box-sizing: border-box;
+        position: relative;
+      }
+
+      .resizer {
+        width: 5px;
+        background-color: #4a5568;
+        cursor: ew-resize;
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1;
       }
 
       .file-list {
@@ -61,6 +73,10 @@
         .sidebar {
           width: 100%;
           padding: 10px;
+        }
+
+        .resizer {
+          display: none;
         }
 
         .content {
@@ -130,6 +146,7 @@
           </ul>
         </div>
       </div>
+      <div class="resizer"></div>
     </div>
 
     <!-- Main Content -->
@@ -156,6 +173,8 @@
       const dropZone = document.getElementById("drop-zone");
       const fileInput = document.getElementById("file-input");
       const uploadForm = document.getElementById("upload-form");
+      const resizer = document.querySelector(".resizer");
+      const sidebar = document.querySelector(".sidebar");
 
       socket.on("textUpdate", (text) => {
         textarea.value = text;
@@ -254,6 +273,22 @@
       }
 
       attachDeleteEventListeners(); // Attach event listeners initially
+
+      // Resizer logic
+      resizer.addEventListener("mousedown", function (e) {
+        document.addEventListener("mousemove", resize);
+        document.addEventListener("mouseup", stopResize);
+      });
+
+      function resize(e) {
+        const newWidth = e.clientX - sidebar.offsetLeft;
+        sidebar.style.width = newWidth + "px";
+      }
+
+      function stopResize() {
+        document.removeEventListener("mousemove", resize);
+        document.removeEventListener("mouseup", stopResize);
+      }
     </script>
   </body>
 </html>
