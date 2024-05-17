@@ -11,8 +11,8 @@ const sanitizeFilename = require('sanitize-filename');
 
 // Parse command-line arguments
 const args = minimist(process.argv.slice(2));
-const host = args.a || '0.0.0.0';
-const port = args.p || 8088;
+const host = args.a || process.env.HOST || '0.0.0.0';
+const port = args.p || process.env.PORT || 8088;
 
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
