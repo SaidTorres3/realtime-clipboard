@@ -77,11 +77,16 @@ app.get('/', (req, res) => {
 });
 
 app.put('/', (req, res) => {
-  const newText = req.body;
-  sharedText = newText;
-  writeSharedTextToFile(newText);
-  io.emit('textUpdate', newText);
-  res.status(200).send('Text updated successfully');
+  const [key, newText] = Object.entries(req.body)[0];
+
+  if (typeof key === 'string') {
+    sharedText = key;
+    writeSharedTextToFile(key);
+    io.emit('textUpdate', key);
+    res.status(200).send('Text updated successfully');
+  } else {
+    res.status(400).send('Invalid input');
+  }
 });
 
 app.get('/files', (req, res) => {
