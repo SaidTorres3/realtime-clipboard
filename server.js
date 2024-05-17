@@ -83,9 +83,9 @@ app.put('/', (req, res) => {
     sharedText = key;
     writeSharedTextToFile(key);
     io.emit('textUpdate', key);
-    res.status(200).send('Text updated successfully');
+    res.status(200).send('Text updated successfully' + '\n');
   } else {
-    res.status(400).send('Invalid input');
+    res.status(400).send('Invalid input' + '\n');
   }
 });
 
@@ -105,14 +105,14 @@ app.get('/files/:filename', (req, res) => {
 
   fs.access(filepath, fs.constants.F_OK, (err) => {
     if (err) {
-      return res.status(404).send('File not found');
+      return res.status(404).send('File not found' + '\n');
     }
 
     res.download(filepath, (err) => {
       if (err) {
         console.error('Error downloading the file:', err);
         if (!res.headersSent) {
-          res.status(500).send('Error downloading the file');
+          res.status(500).send('Error downloading the file' + '\n');
         }
       }
     });
@@ -133,15 +133,15 @@ app.delete('/files/:filename', (req, res) => {
       if (err.code === 'ENOENT') {
         // File doesn't exist
         console.warn(`File not found: ${filePath}`);
-        res.status(404).send('File not found');
+        res.status(404).send('File not found' + '\n');
       } else {
         // Other errors
         console.error('Error deleting the file:', err);
-        res.status(500).send('Error deleting the file');
+        res.status(500).send('Error deleting the file' + '\n');
       }
     } else {
       io.emit('fileUpdate');
-      res.status(200).send('File deleted successfully');
+      res.status(200).send('File deleted successfully' + '\n');
     }
   });
 });
