@@ -18,28 +18,32 @@ describe('File Upload and Management API', () => {
   });
 
   // Test the text update endpoint
-  it('should update text on PUT /', (done) => {
+  it('should update text on PUT / and get the updated text on GET /', (done) => {
     const newText = 'This is the updated text from test/test.js';
     request(app)
       .put('/')
-      .set('Content-Type', 'text/plain')
       .send(newText)
       .expect(200)
       .end((err, res) => {
         expect(res.text).to.equal('Text updated successfully\n');
-        done(err);
+
+        request(app)
+          .get('/')
+          .set('User-Agent', 'curl/7.79.1')
+          .expect(200)
+          .end((err, res) => {
+            expect(res.text).to.equal(newText + '\n');
+            done(err);
+          });
       });
   });
 
   const uploadsDir = path.join(__dirname, '../uploads');
 
-  beforeEach((done) => {
-    fs.readdir(uploadsDir, (err, files) => {
-      if (err) return done(err);
-
-      const unlinkPromises = files.map(file => fs.promises.unlink(path.join(uploadsDir, file)));
-      Promise.all(unlinkPromises).then(() => done()).catch(done);
-    });
+  beforeEach(async () => {
+    const files = await fs.promises.readdir(uploadsDir);
+    const unlinkPromises = files.map(file => fs.promises.unlink(path.join(uploadsDir, file)));
+    await Promise.all(unlinkPromises);
   });
 
   it('should upload a file on POST /upload', (done) => {
@@ -70,6 +74,27 @@ describe('File Upload and Management API', () => {
           });
         });
       });
+  });
+
+  it('should list uploaded files on GET /files', async () => {
+    // Upload the file first
+    await new Promise((resolve, reject) => {
+      request(app)
+        .post('/upload')
+        .attach('files', path.join(__dirname, 'test-file.txt'))
+        .expect(302)
+        .end((err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+    });
+
+    // Now list the files
+    const res = await request(app)
+      .get('/files')
+      .expect(200);
+
+    expect(res.text.trim()).to.match(/test-file-/);
   });
 
   it('should delete a file on DELETE /files/:filename', (done) => {
