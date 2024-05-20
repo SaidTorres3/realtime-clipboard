@@ -30,7 +30,8 @@
       }
 
       .sidebar {
-        width: 300px;
+        width: 23%;
+        min-width: 250px;
         background-color: #061228;
         padding: 20px;
         display: flex;
@@ -71,8 +72,14 @@
           flex-direction: column-reverse;
         }
 
+        textarea {
+          resize: vertical;
+          min-height: 300px;
+        }
+
         .sidebar {
           width: 100%;
+          min-width: 100%;
           padding: 10px;
         }
 
