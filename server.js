@@ -16,13 +16,17 @@ const __dirname = path.dirname(__filename);
 
 // Parse command-line arguments
 const args = minimist(process.argv.slice(2));
-const host = args.a || '0.0.0.0';
-const port = args.p || 8088;
+const host = args.a || process.env.HOST || '0.0.0.0';
+const port = args.p || process.env.PORT || 8088;
 
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
 }
+
+const removeAccents = (str) => {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '_');
+};
 
 // Setup storage for multer with sanitized filename
 const storage = multer.diskStorage({
@@ -30,13 +34,13 @@ const storage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const originalName = sanitizeFilename(file.originalname.replace(/\.[^.]+$/, '')); // Sanitize filename
+    let originalName = file.originalname.replace(/\.[^.]+$/, ''); // Remove file extension
+    originalName = removeAccents(originalName); // Remove accents and special characters
+    originalName = sanitizeFilename(originalName); // Sanitize the filename
     const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
     cb(null, `${originalName}-${randomSuffix}${path.extname(file.originalname)}`);
   }
 });
-
-const upload = multer({ storage });
 
 const app = express();
 const server = http.createServer(app);
@@ -70,6 +74,8 @@ const writeSharedTextToFile = (text) => {
 
 readSharedTextFromFile();
 
+app.use(express.static(__dirname + '/views'));
+
 app.get('/', (req, res) => {
   const userAgent = req.headers['user-agent'] || '';
   if (userAgent.includes('curl') || userAgent.includes('wget') || req.query.textonly) {
@@ -82,14 +88,16 @@ app.get('/', (req, res) => {
 });
 
 app.put('/', (req, res) => {
-  const newText = req.body;
-  if (typeof newText !== 'string') {
-    return res.status(400).send('Invalid data');
+  const [key, newText] = Object.entries(req.body)[0];
+
+  if (typeof key === 'string') {
+    sharedText = key;
+    writeSharedTextToFile(key);
+    io.emit('textUpdate', key);
+    res.status(200).send('Text updated successfully' + '\n');
+  } else {
+    res.status(400).send('Invalid input' + '\n');
   }
-  sharedText = newText;
-  writeSharedTextToFile(newText);
-  io.emit('textUpdate', newText);
-  res.status(200).send('Text updated successfully');
 });
 
 app.get('/files', (req, res) => {
@@ -108,24 +116,52 @@ app.get('/files/:filename', (req, res) => {
 
   fs.access(filepath, fs.constants.F_OK, (err) => {
     if (err) {
-      return res.status(404).send('File not found');
+      return res.status(404).send('File not found' + '\n');
     }
 
     res.download(filepath, (err) => {
       if (err) {
         console.error('Error downloading the file:', err);
         if (!res.headersSent) {
-          res.status(500).send('Error downloading the file');
+          res.status(500).send('Error downloading the file' + '\n');
         }
       }
     });
   });
 });
 
-app.post('/upload', upload.array('files', 10), (req, res) => {
-  io.emit('fileUpdate');
-  res.redirect('/');
+const upload = multer({ storage }).any();
+
+app.post('/upload', (req, res) => {
+  const userAgent = req.headers['user-agent'] || '';
+
+  upload(req, res, (err) => {
+    if (err) {
+      return res.status(500).send('Error uploading file(s): ' + err.message + '\n');
+    }
+
+    if (req.files.length === 0) {
+      return res.status(400).send('No files uploaded' + '\n');
+    }
+
+    if (req.files.length === 1) {
+      io.emit('fileUpdate');
+      if (req.headers['user-agent'] && (req.headers['user-agent'].includes('curl')) || userAgent.includes('wget')) {
+        return res.status(200).send('Single file uploaded successfully' + '\n');
+      } else {
+        return res.redirect('/');
+      }
+    } else {
+      io.emit('fileUpdate');
+      if (req.headers['user-agent'] && (req.headers['user-agent'].includes('curl') || userAgent.includes('wget'))) {
+        return res.status(200).send('Multiple files uploaded successfully' + '\n');
+      } else {
+        return res.redirect('/');
+      }
+    }
+  });
 });
+
 
 app.delete('/files/:filename', (req, res) => {
   const filename = sanitizeFilename(req.params.filename);
@@ -136,15 +172,15 @@ app.delete('/files/:filename', (req, res) => {
       if (err.code === 'ENOENT') {
         // File doesn't exist
         console.warn(`File not found: ${filePath}`);
-        res.status(404).send('File not found');
+        res.status(404).send('File not found' + '\n');
       } else {
         // Other errors
         console.error('Error deleting the file:', err);
-        res.status(500).send('Error deleting the file');
+        res.status(500).send('Error deleting the file' + '\n');
       }
     } else {
       io.emit('fileUpdate');
-      res.status(200).send('File deleted successfully');
+      res.status(200).send('File deleted successfully' + '\n');
     }
   });
 });

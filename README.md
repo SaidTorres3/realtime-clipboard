@@ -2,8 +2,10 @@
 
 This is a real-time web application built with Node.js, Express, Multer, and Socket.IO. The application allows users to share text and files between multiple devices without requiring login or registration. The shared text and files are updated automatically in real-time between devices. It is intended for fast sharing text and files between multiple devices.
 
-<img src="/images/frontend.png" width="800">
+## Screenshots
 
+<img src="/images/frontend.png" width="800">
+<img src="/images/phone.png" width="300">
 <img src="/images/batch.png" width="800">
 
 ## Features
@@ -72,7 +74,7 @@ To get the shared text using curl:
 To write the shared text using curl:
 
   ```bash
-  curl -X PUT -d "your text" -H "Content-Type: text/plain" http://localhost:8088
+  curl -X PUT -d "your text" http://localhost:8088
   ```
 
 ### List Files
