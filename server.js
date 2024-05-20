@@ -69,6 +69,8 @@ const writeSharedTextToFile = (text) => {
 
 readSharedTextFromFile();
 
+app.use(express.static(__dirname + '/views'));
+
 app.get('/', (req, res) => {
   const userAgent = req.headers['user-agent'] || '';
   if (userAgent.includes('curl') || userAgent.includes('wget') || req.query.textonly) {
