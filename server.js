@@ -37,8 +37,6 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage });
-
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
@@ -125,10 +123,38 @@ app.get('/files/:filename', (req, res) => {
   });
 });
 
-app.post('/upload', upload.array('files', 10), (req, res) => {
-  io.emit('fileUpdate');
-  res.redirect('/');
+const upload = multer({ storage }).any();
+
+app.post('/upload', (req, res) => {
+  const userAgent = req.headers['user-agent'] || '';
+
+  upload(req, res, (err) => {
+    if (err) {
+      return res.status(500).send('Error uploading file(s): ' + err.message + '\n');
+    }
+
+    if (req.files.length === 0) {
+      return res.status(400).send('No files uploaded' + '\n');
+    }
+
+    if (req.files.length === 1) {
+      io.emit('fileUpdate');
+      if (req.headers['user-agent'] && (req.headers['user-agent'].includes('curl')) || userAgent.includes('wget')) {
+        return res.status(200).send('Single file uploaded successfully' + '\n');
+      } else {
+        return res.redirect('/');
+      }
+    } else {
+      io.emit('fileUpdate');
+      if (req.headers['user-agent'] && (req.headers['user-agent'].includes('curl') || userAgent.includes('wget'))) {
+        return res.status(200).send('Multiple files uploaded successfully' + '\n');
+      } else {
+        return res.redirect('/');
+      }
+    }
+  });
 });
+
 
 app.delete('/files/:filename', (req, res) => {
   const filename = sanitizeFilename(req.params.filename);
