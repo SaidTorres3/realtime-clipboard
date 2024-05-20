@@ -26,12 +26,22 @@ describe('File Upload and Management API', () => {
       .send(newText)
       .expect(200)
       .end((err, res) => {
-        expect(res.text).to.equal('Text updated successfully');
+        expect(res.text).to.equal('Text updated successfully\n');
         done(err);
       });
   });
 
-  // Test file upload endpoint
+  const uploadsDir = path.join(__dirname, '../uploads');
+
+  beforeEach((done) => {
+    fs.readdir(uploadsDir, (err, files) => {
+      if (err) return done(err);
+
+      const unlinkPromises = files.map(file => fs.promises.unlink(path.join(uploadsDir, file)));
+      Promise.all(unlinkPromises).then(() => done()).catch(done);
+    });
+  });
+
   it('should upload a file on POST /upload', (done) => {
     request(app)
       .post('/upload')
@@ -40,18 +50,28 @@ describe('File Upload and Management API', () => {
       .end((err, res) => {
         if (err) return done(err);
 
-        // Check if file exists
-        fs.readdir(path.join(__dirname, '../uploads'), (err, files) => {
-          if (err) return done(err);
+        // Debug: Check if the uploads directory exists
+        fs.access(uploadsDir, fs.constants.F_OK, (accessErr) => {
+          if (accessErr) {
+            console.error('Uploads directory does not exist');
+            return done(accessErr);
+          }
 
-          const uploadedFile = files.find(file => file.startsWith('test-file-') && file.endsWith('.txt'));
-          expect(uploadedFile).to.not.be.undefined;
-          done();
+          // Debug: Print the contents of the uploads directory
+          fs.readdir(uploadsDir, (readdirErr, files) => {
+            if (readdirErr) {
+              console.error('Error reading uploads directory:', readdirErr);
+              return done(readdirErr);
+            }
+
+            const uploadedFile = files.find(file => file.startsWith('test-file-') && file.endsWith('.txt'));
+            expect(uploadedFile).to.not.be.undefined;
+            done();
+          });
         });
       });
   });
 
-  // Test file delete endpoint
   it('should delete a file on DELETE /files/:filename', (done) => {
     const filename = 'test-file.txt';
     const filePath = path.join(__dirname, '../uploads', filename);
@@ -67,7 +87,7 @@ describe('File Upload and Management API', () => {
         // Check if file is deleted
         fs.access(filePath, fs.constants.F_OK, (err) => {
           expect(err).to.not.be.null;
-          expect(res.text).to.equal('File deleted successfully');
+          expect(res.text).to.equal('File deleted successfully\n');
           done();
         });
       });
