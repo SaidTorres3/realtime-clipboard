@@ -1,91 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="h-full" lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Real-Time Share App</title>
+    <title>RealTime-Clipboard</title>
     <script src="/socket.io/socket.io.js"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
     <style>
       body {
-        font-family: "Arial", sans-serif;
-        background: #1d1f21;
-        color: #c5c8c6;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-        margin: 0;
+        font-family: "Inter", sans-serif;
       }
-      h2 {
-        color: #81a2be;
-        margin: 0px;
-      }
-      #textarea {
-        width: 90%;
-        height: 600px;
-        padding: 10px;
-        margin: 20px 0;
-        border: none;
-        border-radius: 5px;
-        background: #282a2e;
-        color: #c5c8c6;
-        font-size: 16px;
-        resize: none;
-      }
-      form {
-        margin: 20px 0;
-      }
-      input[type="file"] {
-        margin-bottom: 10px;
-      }
-      button {
-        padding: 10px 20px;
-        border: none;
-        border-radius: 5px;
-        background: #81a2be;
-        color: #1d1f21;
-        font-size: 16px;
-        cursor: pointer;
-        transition: background 0.3s ease;
-      }
-      button:hover {
-        background: #5f7a99;
-      }
-      .file-list {
-        list-style-type: none;
-        padding: 0;
-        width: 80%;
-        height: 400px;
-        overflow-y: auto;
-      }
-      .file-list li {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: #282a2e;
-        padding: 10px;
-        margin: 5px 0;
-        border-radius: 5px;
-      }
-      .file-list li a {
-        color: #c5c8c6;
-        text-decoration: none;
-        transition: color 0.3s ease;
-      }
-      .file-list li a:hover {
-        color: #81a2be;
-      }
-      .file-list li form {
-        display: inline;
-      }
-      .file-list li form button {
-        background: #cc6666;
-        color: #1d1f21;
-      }
-      .file-list li form button:hover {
-        background: #a54b4b;
-      }
+
       #drop-zone {
         position: fixed;
         top: 0;
@@ -100,30 +28,151 @@
         font-size: 24px;
         z-index: 1000;
       }
+
+      .sidebar {
+        width: 23%;
+        min-width: 250px;
+        background-color: #061228;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        max-height: 100%;
+        box-sizing: border-box;
+        position: relative;
+        overflow: auto;
+      }
+
+      .resizer {
+        width: 5px;
+        background-color: #4a5568;
+        cursor: ew-resize;
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1;
+      }
+
+      .file-list {
+        overflow-y: auto;
+        flex-grow: 1;
+        max-height: calc(
+          100vh - 220px
+        ); /* Adjust based on the actual height of other elements */
+      }
+
+      .content {
+        flex-grow: 1;
+        padding: 20px;
+      }
+
+      /* Media query for mobile devices */
+      @media (max-width: 768px) {
+        body {
+          flex-direction: column-reverse;
+        }
+
+        textarea {
+          resize: vertical;
+          min-height: 300px;
+        }
+
+        .sidebar {
+          width: 100%;
+          min-width: 100%;
+          padding: 10px;
+        }
+
+        .resizer {
+          display: none;
+        }
+
+        .content {
+          padding: 10px;
+          width: 100%;
+        }
+
+        .file-list {
+          max-height: 300px; /* Adjust based on the actual height of other elements */
+        }
+      }
     </style>
   </head>
-  <body>
-    <textarea
-      id="textarea"
-      style="resize: vertical"
-      placeholder="Type something..."
-    ></textarea>
-    <h2>Upload Files</h2>
-    <form id="upload-form" action="/upload" method="post" enctype="multipart/form-data">
-      <input id="file-input" type="file" name="files" multiple required />
-      <button type="submit">Upload</button>
-    </form>
-    <h2>Files</h2>
-    <ul class="file-list" id="file-list">
-      <% files.forEach(file => { %>
-      <li data-filename="<%= file %>">
-        <a href="/uploads/<%= file %>" download><%= file %></a>
-        <button type="button" class="delete-button">Delete</button>
-      </li>
-      <% }) %>
-    </ul>
 
-    <div id="drop-zone">Drop files here to upload</div>
+  <body class="bg-black text-gray-100 flex min-h-full">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div>
+        <div class="mb-6">
+          <h3 class="text-xl font-semibold mb-2">Upload Files</h3>
+          <form
+            id="upload-form"
+            class="space-y-4"
+            action="/upload"
+            method="post"
+            enctype="multipart/form-data"
+          >
+            <input
+              id="file-input"
+              type="file"
+              name="files"
+              multiple
+              required
+              class="block w-full text-sm text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-500 file:text-gray-100 hover:file:bg-blue-400"
+            />
+            <button
+              type="submit"
+              class="w-full py-2 bg-blue-500 text-gray-100 rounded-lg hover:bg-blue-400 transition duration-300"
+            >
+              Upload
+            </button>
+          </form>
+        </div>
+        <div>
+          <h3 class="text-xl font-semibold mb-2">Files</h3>
+          <ul class="file-list w-full space-y-2" id="file-list">
+            <% files.forEach(file => { %>
+            <li
+              data-filename="<%= file %>"
+              class="flex justify-between items-center bg-gray-700 p-4 rounded-lg"
+            >
+              <a
+                href="/uploads/<%= file %>"
+                download
+                class="text-gray-200 hover:text-blue-400 transition duration-300"
+              >
+                <%= file %>
+              </a>
+              <button
+                type="button"
+                class="delete-button bg-red-500 text-gray-100 px-3 py-1 rounded-lg hover:bg-red-400 transition duration-300"
+              >
+                Delete
+              </button>
+            </li>
+            <% }) %>
+          </ul>
+        </div>
+      </div>
+      <div class="resizer"></div>
+    </div>
+
+    <!-- Main Content -->
+    <div
+      style="display: flex"
+      class="content flex flex-col items-center justify-center"
+    >
+      <textarea
+        id="textarea"
+        style="flex-grow: 1; background-color: #121f33;"
+        class="w-full h-full h-64 p-4 mb-4 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+        placeholder="Type something..."
+      ></textarea>
+    </div>
+
+    <div id="drop-zone" class="flex items-center justify-center">
+      Drop files here to upload
+    </div>
 
     <script>
       const socket = io();
@@ -132,6 +181,8 @@
       const dropZone = document.getElementById("drop-zone");
       const fileInput = document.getElementById("file-input");
       const uploadForm = document.getElementById("upload-form");
+      const resizer = document.querySelector(".resizer");
+      const sidebar = document.querySelector(".sidebar");
 
       socket.on("textUpdate", (text) => {
         textarea.value = text;
@@ -156,7 +207,10 @@
 
       document.addEventListener("dragenter", (event) => {
         event.preventDefault();
-        if (event.dataTransfer.items && event.dataTransfer.items[0].kind === 'file') {
+        if (
+          event.dataTransfer.items &&
+          event.dataTransfer.items[0].kind === "file"
+        ) {
           dragCounter++;
           dropZone.style.display = "flex";
         }
@@ -164,7 +218,10 @@
 
       document.addEventListener("dragleave", (event) => {
         event.preventDefault();
-        if (event.dataTransfer.items && event.dataTransfer.items[0].kind === 'file') {
+        if (
+          event.dataTransfer.items &&
+          event.dataTransfer.items[0].kind === "file"
+        ) {
           dragCounter--;
           if (dragCounter === 0) {
             dropZone.style.display = "none";
@@ -203,20 +260,20 @@
       });
 
       function attachDeleteEventListeners() {
-        const deleteButtons = document.querySelectorAll('.delete-button');
-        deleteButtons.forEach(button => {
-          button.addEventListener('click', () => {
-            const li = button.closest('li');
-            const filename = li.getAttribute('data-filename');
-            
+        const deleteButtons = document.querySelectorAll(".delete-button");
+        deleteButtons.forEach((button) => {
+          button.addEventListener("click", () => {
+            const li = button.closest("li");
+            const filename = li.getAttribute("data-filename");
+
             fetch(`/files/${filename}`, {
-              method: 'DELETE'
-            }).then(response => {
+              method: "DELETE",
+            }).then((response) => {
               if (response.ok) {
                 li.remove();
-                socket.emit('fileUpdate');
+                socket.emit("fileUpdate");
               } else {
-                console.error('Failed to delete file');
+                console.error("Failed to delete file");
               }
             });
           });
@@ -224,6 +281,22 @@
       }
 
       attachDeleteEventListeners(); // Attach event listeners initially
+
+      // Resizer logic
+      resizer.addEventListener("mousedown", function (e) {
+        document.addEventListener("mousemove", resize);
+        document.addEventListener("mouseup", stopResize);
+      });
+
+      function resize(e) {
+        const newWidth = e.clientX - sidebar.offsetLeft;
+        sidebar.style.width = newWidth + "px";
+      }
+
+      function stopResize() {
+        document.removeEventListener("mousemove", resize);
+        document.removeEventListener("mouseup", stopResize);
+      }
     </script>
   </body>
 </html>
