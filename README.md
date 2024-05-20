@@ -5,8 +5,8 @@ This is a real-time web application built with Node.js, Express, Multer, and Soc
 ## Screenshots
 
 <img src="/images/frontend.png" width="800">
+<img src="/images/phone.png" width="300">
 <img src="/images/batch.png" width="800">
-<img src="/images/phone.png">
 
 ## Features
 
