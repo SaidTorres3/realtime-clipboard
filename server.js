@@ -1,13 +1,18 @@
-const express = require('express');
-const multer = require('multer');
-const http = require('http');
-const socketIo = require('socket.io');
-const path = require('path');
-const fs = require('fs');
-const minimist = require('minimist');
-const os = require('os');
-const bodyParser = require('body-parser');
-const sanitizeFilename = require('sanitize-filename');
+import express from 'express';
+import multer from 'multer';
+import http from 'http';
+import { Server as SocketIoServer } from 'socket.io';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+import minimist from 'minimist';
+import os from 'os';
+import bodyParser from 'body-parser';
+import sanitizeFilename from 'sanitize-filename';
+
+// Fix __dirname and __filename in ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Parse command-line arguments
 const args = minimist(process.argv.slice(2));
@@ -39,7 +44,7 @@ const storage = multer.diskStorage({
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = new SocketIoServer(server);
 
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
@@ -215,3 +220,5 @@ server.listen(port, host, () => {
     console.log(`Access it using http://${localIP}:${port}`);
   }
 });
+
+export default app; // Export the app for testing
