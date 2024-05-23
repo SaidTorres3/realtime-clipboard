@@ -10,11 +10,9 @@ import os from 'os';
 import bodyParser from 'body-parser';
 import sanitizeFilename from 'sanitize-filename';
 
-// Fix __dirname and __filename in ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Parse command-line arguments
 const args = minimist(process.argv.slice(2));
 const host = args.a || process.env.HOST || '0.0.0.0';
 const port = args.p || process.env.PORT || 8088;
@@ -28,19 +26,20 @@ const removeAccents = (str) => {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9-]/g, '_');
 };
 
-// Setup storage for multer with sanitized filename
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    let originalName = file.originalname.replace(/\.[^.]+$/, ''); // Remove file extension
-    originalName = removeAccents(originalName); // Remove accents and special characters
-    originalName = sanitizeFilename(originalName); // Sanitize the filename
+    let originalName = file.originalname.replace(/\.[^.]+$/, '');
+    originalName = removeAccents(originalName);
+    originalName = sanitizeFilename(originalName);
     const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
     cb(null, `${originalName}-${randomSuffix}${path.extname(file.originalname)}`);
   }
 });
+
+const upload = multer({ storage });
 
 const app = express();
 const server = http.createServer(app);
@@ -130,38 +129,53 @@ app.get('/files/:filename', (req, res) => {
   });
 });
 
-const upload = multer({ storage }).any();
+app.post('/upload-chunk', upload.single('chunk'), (req, res) => {
+  const { chunkNumber, totalChunks, fileId, fileName } = req.body;
+  const chunk = req.file;
 
-app.post('/upload', (req, res) => {
-  const userAgent = req.headers['user-agent'] || '';
+  const chunkDir = path.join(uploadsDir, fileId);
+  if (!fs.existsSync(chunkDir)) {
+    fs.mkdirSync(chunkDir);
+  }
 
-  upload(req, res, (err) => {
-    if (err) {
-      return res.status(500).send('Error uploading file(s): ' + err.message + '\n');
+  const chunkPath = path.join(chunkDir, `${chunkNumber}.part`);
+  fs.renameSync(chunk.path, chunkPath);
+
+  const uploadedChunks = fs.readdirSync(chunkDir).length;
+  if (uploadedChunks == totalChunks) {
+    const filePath = path.join(uploadsDir, fileName);
+    const writeStream = fs.createWriteStream(filePath);
+
+    for (let i = 0; i < totalChunks; i++) {
+      const partPath = path.join(chunkDir, `${i}.part`);
+      const data = fs.readFileSync(partPath);
+      writeStream.write(data);
+      fs.unlinkSync(partPath);
     }
 
-    if (req.files.length === 0) {
-      return res.status(400).send('No files uploaded' + '\n');
-    }
+    writeStream.end();
 
-    if (req.files.length === 1) {
-      io.emit('fileUpdate');
-      if (req.headers['user-agent'] && (req.headers['user-agent'].includes('curl')) || userAgent.includes('wget')) {
-        return res.status(200).send('Single file uploaded successfully' + '\n');
-      } else {
-        return res.redirect('/');
+    const removeDirectory = (path, retries = 5) => {
+      try {
+        fs.rmSync(path, { recursive: true, force: true });
+      } catch (err) {
+        if (err.code === 'EPERM' && retries > 0) {
+          setTimeout(() => removeDirectory(path, retries - 1), 100);
+        } else {
+          throw err;
+        }
       }
-    } else {
-      io.emit('fileUpdate');
-      if (req.headers['user-agent'] && (req.headers['user-agent'].includes('curl') || userAgent.includes('wget'))) {
-        return res.status(200).send('Multiple files uploaded successfully' + '\n');
-      } else {
-        return res.redirect('/');
-      }
-    }
-  });
+    };
+
+    removeDirectory(chunkDir);
+    cleanupUploadsDir(); // Clean up any remaining empty directories
+
+    io.emit('fileUpdate');
+    res.status(200).send('File uploaded successfully\n');
+  } else {
+    res.status(200).send('Chunk uploaded successfully\n');
+  }
 });
-
 
 app.delete('/files/:filename', (req, res) => {
   const filename = sanitizeFilename(req.params.filename);
@@ -170,11 +184,9 @@ app.delete('/files/:filename', (req, res) => {
   fs.unlink(filePath, (err) => {
     if (err) {
       if (err.code === 'ENOENT') {
-        // File doesn't exist
         console.warn(`File not found: ${filePath}`);
         res.status(404).send('File not found' + '\n');
       } else {
-        // Other errors
         console.error('Error deleting the file:', err);
         res.status(500).send('Error deleting the file' + '\n');
       }
@@ -184,6 +196,21 @@ app.delete('/files/:filename', (req, res) => {
     }
   });
 });
+
+const cleanupUploadsDir = () => {
+  fs.readdir(uploadsDir, (err, files) => {
+    if (err) {
+      console.error('Error reading uploads directory:', err);
+      return;
+    }
+    files.forEach(file => {
+      const filePath = path.join(uploadsDir, file);
+      if (fs.statSync(filePath).isDirectory()) {
+        fs.rmSync(filePath, { recursive: true, force: true });
+      }
+    });
+  });
+};
 
 io.on('connection', (socket) => {
   socket.emit('textUpdate', sharedText);
@@ -221,4 +248,4 @@ server.listen(port, host, () => {
   }
 });
 
-export default app; // Export the app for testing
+export default app;
