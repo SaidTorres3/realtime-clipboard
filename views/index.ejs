@@ -5,10 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RealTime-Clipboard</title>
     <script src="/socket.io/socket.io.js"></script>
-    <link
-      href="tailwind.min.css"
-      rel="stylesheet"
-    />
+    <link href="tailwind.min.css" rel="stylesheet" />
     <style>
       body {
         font-family: "Inter", sans-serif;
@@ -56,14 +53,16 @@
       .file-list {
         overflow-y: auto;
         flex-grow: 1;
-        max-height: calc(
-          100vh - 220px
-        ); /* Adjust based on the actual height of other elements */
+        max-height: calc(100vh - 220px); /* Adjust based on the actual height of other elements */
       }
 
       .content {
         flex-grow: 1;
         padding: 20px;
+      }
+
+      #progress-container {
+        display: none;
       }
 
       /* Media query for mobile devices */
@@ -164,10 +163,17 @@
     >
       <textarea
         id="textarea"
-        style="flex-grow: 1; background-color: #121f33;"
+        style="flex-grow: 1; background-color: #121f33"
         class="w-full h-full h-64 p-4 mb-4 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
         placeholder="Type something..."
       ></textarea>
+    </div>
+
+    <div
+      id="progress-container"
+      class="fixed bottom-0 left-0 w-full bg-gray-800"
+    >
+      <div id="progress-bar" class="h-2 bg-blue-500" style="width: 0%"></div>
     </div>
 
     <div id="drop-zone" class="flex items-center justify-center">
@@ -183,6 +189,8 @@
       const uploadForm = document.getElementById("upload-form");
       const resizer = document.querySelector(".resizer");
       const sidebar = document.querySelector(".sidebar");
+      const progressBar = document.getElementById("progress-bar");
+      const progressContainer = document.getElementById("progress-container");
 
       socket.on("textUpdate", (text) => {
         textarea.value = text;
@@ -201,6 +209,14 @@
             fileList.innerHTML = doc.getElementById("file-list").innerHTML;
             attachDeleteEventListeners(); // Re-attach event listeners after updating the file list
           });
+      });
+
+      uploadForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const files = fileInput.files;
+        if (files.length > 0) {
+          uploadFiles(files);
+        }
       });
 
       let dragCounter = 0;
@@ -235,8 +251,7 @@
         dragCounter = 0;
         const files = event.dataTransfer.files;
         if (files.length > 0) {
-          fileInput.files = files;
-          uploadForm.submit();
+          uploadFiles(files);
         }
       });
 
@@ -258,6 +273,35 @@
       textarea.addEventListener("drop", (event) => {
         event.stopPropagation();
       });
+
+      function uploadFiles(files) {
+        const formData = new FormData();
+        for (let i = 0; i < files.length; i++) {
+          formData.append('files', files[i]);
+        }
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/upload", true);
+
+        xhr.upload.onprogress = function (event) {
+          if (event.lengthComputable) {
+            const percentComplete = (event.loaded / event.total) * 100;
+            progressBar.style.width = percentComplete + "%";
+          }
+        };
+
+        xhr.onloadstart = function () {
+          progressContainer.style.display = "block";
+        };
+
+        xhr.onloadend = function () {
+          progressContainer.style.display = "none";
+          progressBar.style.width = "0%";
+          socket.emit("fileUpdate");
+        };
+
+        xhr.send(formData);
+      }
 
       function attachDeleteEventListeners() {
         const deleteButtons = document.querySelectorAll(".delete-button");
