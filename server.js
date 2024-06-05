@@ -78,7 +78,7 @@ app.use(express.static(__dirname + '/views'));
 
 app.get('/', (req, res) => {
   const userAgent = req.headers['user-agent'] || '';
-  if (userAgent.includes('curl') || userAgent.includes('wget') || req.query.textonly) {
+  if (userAgent.includes('curl') || userAgent.includes('wget') || userAgent.includes('PowerShell') || req.query.textonly) {
     res.send(sharedText + '\n');
   } else {
     fs.readdir(uploadsDir, (err, files) => {
