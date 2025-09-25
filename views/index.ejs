@@ -476,7 +476,7 @@
         }
 
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", "/upload", true);
+        xhr.open("POST", `${environmentPath}/upload`, true);
 
         xhr.upload.onprogress = function (event) {
           if (event.lengthComputable) {
@@ -573,7 +573,7 @@
 
         return new Promise((resolve, reject) => {
           const xhr = new XMLHttpRequest();
-          xhr.open("POST", "/upload", true);
+          xhr.open("POST", `${environmentPath}/upload`, true);
 
           xhr.onload = function () {
             if (xhr.status === 200) {
