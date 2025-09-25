@@ -140,11 +140,19 @@
     <div class="sidebar">
       <div>
         <div class="mb-6">
+          <% if (typeof environmentName !== 'undefined' && environmentName !== 'default') { %>
+          <div class="mb-4 p-3 bg-blue-900 rounded-lg border border-blue-500">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-medium text-blue-200">Environment</h2>
+              <span class="text-blue-300 font-mono text-sm"><%= environmentName %></span>
+            </div>
+          </div>
+          <% } %>
           <h3 class="text-xl font-semibold mb-2">Upload Files</h3>
           <form
             id="upload-form"
             class="space-y-4"
-            action="/upload"
+            action="<%= typeof environmentPath !== 'undefined' ? environmentPath : '' %>/upload"
             method="post"
             enctype="multipart/form-data"
           >
@@ -173,7 +181,7 @@
               class="flex justify-between items-center bg-gray-700 p-4 rounded-lg"
             >
               <a
-                href="/uploads/<%= file %>"
+                href="<%= typeof environmentPath !== 'undefined' ? environmentPath : '' %>/files/<%= file %>"
                 download
                 class="text-gray-200 hover:text-blue-400 transition duration-300"
               >
@@ -267,6 +275,14 @@
       const chunkPercentage = document.getElementById("chunk-percentage");
       const chunkLabel = document.getElementById("chunk-label");
 
+      // Get current environment from URL
+      const currentPath = window.location.pathname;
+      const environmentName = currentPath === '/' ? 'default' : currentPath.slice(1);
+      const environmentPath = currentPath === '/' ? '' : currentPath;
+
+      // Join the appropriate environment room
+      socket.emit('joinEnvironment', environmentName);
+
       // Track active uploads for cleanup
       let activeUploads = new Set();
       
@@ -313,7 +329,7 @@
       });
 
       socket.on("fileUpdate", () => {
-        fetch("/")
+        fetch(window.location.pathname)
           .then((response) => response.text())
           .then((html) => {
             const parser = new DOMParser();
@@ -407,7 +423,7 @@
           
           activeUploads.forEach(async (uploadId) => {
             try {
-              await fetch(`/upload/cancel/${uploadId}`, { method: 'DELETE' });
+              await fetch(`${environmentPath}/upload/cancel/${uploadId}`, { method: 'DELETE' });
               console.log(`Canceled upload: ${uploadId}`);
             } catch (error) {
               console.error(`Failed to cancel upload ${uploadId}:`, error);
@@ -573,7 +589,7 @@
         const totalChunks = Math.ceil(file.size / chunkSize);
         
         // Initiate upload session
-        const initResponse = await fetch('/upload/initiate', {
+        const initResponse = await fetch(`${environmentPath}/upload/initiate`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -648,7 +664,7 @@
               reject(new Error(`Network error uploading chunk ${chunkIndex + 1}/${totalChunks} for ${file.name}`));
             };
             
-            xhr.open('POST', '/upload/chunk');
+            xhr.open('POST', `${environmentPath}/upload/chunk`);
             xhr.send(formData);
           });
           
@@ -662,7 +678,7 @@
         chunkProgressBar.style.width = "100%";
         chunkPercentage.textContent = "100%";
         
-        const completeResponse = await fetch('/upload/complete', {
+        const completeResponse = await fetch(`${environmentPath}/upload/complete`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -687,7 +703,7 @@
             const li = button.closest("li");
             const filename = li.getAttribute("data-filename");
 
-            fetch(`/files/${filename}`, {
+            fetch(`${environmentPath}/files/${filename}`, {
               method: "DELETE",
             }).then((response) => {
               if (response.ok) {
