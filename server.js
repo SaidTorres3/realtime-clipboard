@@ -9,6 +9,8 @@ import minimist from 'minimist';
 import os from 'os';
 import bodyParser from 'body-parser';
 import sanitizeFilename from 'sanitize-filename';
+import { v4 as uuidv4 } from 'uuid';
+import Busboy from 'busboy';
 
 // Fix __dirname and __filename in ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -23,6 +25,15 @@ const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
 }
+
+// Create temporary directory for chunked uploads
+const tempDir = path.join(__dirname, 'temp');
+if (!fs.existsSync(tempDir)) {
+  fs.mkdirSync(tempDir);
+}
+
+// Store active upload sessions
+const uploadSessions = new Map();
 
 const removeAccents = (str) => {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9-]/g, '_');
@@ -50,6 +61,7 @@ app.set('view engine', 'ejs');
 app.use(express.static('public'));
 app.use('/uploads', express.static(uploadsDir));
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json()); // Add JSON parser for chunked upload endpoints
 app.use(bodyParser.text());
 
 let sharedText = '';
@@ -132,6 +144,162 @@ app.get('/files/:filename', (req, res) => {
 
 const upload = multer({ storage }).any();
 
+// Chunked upload endpoints
+app.post('/upload/initiate', (req, res) => {
+  console.log('Upload initiate request:', req.body);
+  const { fileName, fileSize, totalChunks } = req.body;
+  
+  if (!fileName || !fileSize || !totalChunks) {
+    console.log('Missing parameters:', { fileName, fileSize, totalChunks });
+    return res.status(400).json({ error: 'Missing required parameters' });
+  }
+
+  const uploadId = uuidv4();
+  const sanitizedFileName = sanitizeFilename(fileName);
+  const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
+  const finalFileName = `${sanitizedFileName.replace(/\.[^.]+$/, '')}-${randomSuffix}${path.extname(sanitizedFileName)}`;
+  
+  uploadSessions.set(uploadId, {
+    fileName: finalFileName,
+    originalFileName: fileName,
+    fileSize: parseInt(fileSize),
+    totalChunks: parseInt(totalChunks),
+    uploadedChunks: 0,
+    chunks: new Map(),
+    createdAt: new Date()
+  });
+
+  res.json({ uploadId, fileName: finalFileName });
+});
+
+app.post('/upload/chunk', (req, res) => {
+  const busboy = Busboy({ headers: req.headers });
+  let uploadId, chunkIndex, chunk;
+
+  busboy.on('field', (fieldname, val) => {
+    if (fieldname === 'uploadId') uploadId = val;
+    if (fieldname === 'chunkIndex') chunkIndex = parseInt(val);
+  });
+
+  busboy.on('file', (fieldname, file, info) => {
+    const chunks = [];
+    file.on('data', (data) => {
+      chunks.push(data);
+    });
+    file.on('end', () => {
+      chunk = Buffer.concat(chunks);
+    });
+  });
+
+  busboy.on('finish', () => {
+    if (!uploadId || chunkIndex === undefined || !chunk) {
+      return res.status(400).json({ error: 'Missing chunk data' });
+    }
+
+    const session = uploadSessions.get(uploadId);
+    if (!session) {
+      return res.status(404).json({ error: 'Upload session not found' });
+    }
+
+    // Store chunk in temporary directory
+    const chunkPath = path.join(tempDir, `${uploadId}_chunk_${chunkIndex}`);
+    fs.writeFileSync(chunkPath, chunk);
+    
+    session.chunks.set(chunkIndex, chunkPath);
+    session.uploadedChunks++;
+
+    res.json({ 
+      success: true, 
+      uploadedChunks: session.uploadedChunks,
+      totalChunks: session.totalChunks
+    });
+  });
+
+  busboy.on('error', (err) => {
+    console.error('Busboy error:', err);
+    res.status(500).json({ error: 'Upload error' });
+  });
+
+  req.pipe(busboy);
+});
+
+app.post('/upload/complete', (req, res) => {
+  const { uploadId } = req.body;
+  
+  if (!uploadId) {
+    return res.status(400).json({ error: 'Missing uploadId' });
+  }
+
+  const session = uploadSessions.get(uploadId);
+  if (!session) {
+    return res.status(404).json({ error: 'Upload session not found' });
+  }
+
+  if (session.uploadedChunks !== session.totalChunks) {
+    return res.status(400).json({ 
+      error: 'Incomplete upload',
+      uploaded: session.uploadedChunks,
+      total: session.totalChunks
+    });
+  }
+
+  try {
+    // Combine all chunks into final file
+    const finalPath = path.join(uploadsDir, session.fileName);
+    const writeStream = fs.createWriteStream(finalPath);
+
+    for (let i = 0; i < session.totalChunks; i++) {
+      const chunkPath = session.chunks.get(i);
+      if (!chunkPath || !fs.existsSync(chunkPath)) {
+        throw new Error(`Missing chunk ${i}`);
+      }
+      
+      const chunkData = fs.readFileSync(chunkPath);
+      writeStream.write(chunkData);
+      
+      // Clean up chunk file
+      fs.unlinkSync(chunkPath);
+    }
+
+    writeStream.end();
+    
+    // Clean up session
+    uploadSessions.delete(uploadId);
+    
+    io.emit('fileUpdate');
+    res.json({ success: true, fileName: session.fileName });
+    
+  } catch (error) {
+    console.error('Error combining chunks:', error);
+    
+    // Clean up failed upload
+    session.chunks.forEach(chunkPath => {
+      if (fs.existsSync(chunkPath)) {
+        fs.unlinkSync(chunkPath);
+      }
+    });
+    uploadSessions.delete(uploadId);
+    
+    res.status(500).json({ error: 'Failed to combine file chunks' });
+  }
+});
+
+app.get('/upload/status/:uploadId', (req, res) => {
+  const { uploadId } = req.params;
+  const session = uploadSessions.get(uploadId);
+  
+  if (!session) {
+    return res.status(404).json({ error: 'Upload session not found' });
+  }
+
+  res.json({
+    fileName: session.originalFileName,
+    uploadedChunks: session.uploadedChunks,
+    totalChunks: session.totalChunks,
+    progress: (session.uploadedChunks / session.totalChunks) * 100
+  });
+});
+
 app.post('/upload', (req, res) => {
   const userAgent = req.headers['user-agent'] || '';
 
@@ -212,6 +380,38 @@ const getLocalIPAddress = () => {
   }
   return 'localhost';
 };
+
+// Cleanup expired upload sessions (every 5 minutes)
+setInterval(() => {
+  const now = new Date();
+  const expired = [];
+  
+  uploadSessions.forEach((session, uploadId) => {
+    const age = now - session.createdAt;
+    const maxAge = 30 * 60 * 1000; // 30 minutes
+    
+    if (age > maxAge) {
+      expired.push({ uploadId, session });
+    }
+  });
+  
+  expired.forEach(({ uploadId, session }) => {
+    console.log(`Cleaning up expired upload session: ${uploadId}`);
+    
+    // Clean up chunk files
+    session.chunks.forEach(chunkPath => {
+      if (fs.existsSync(chunkPath)) {
+        fs.unlinkSync(chunkPath);
+      }
+    });
+    
+    uploadSessions.delete(uploadId);
+  });
+  
+  if (expired.length > 0) {
+    console.log(`Cleaned up ${expired.length} expired upload sessions`);
+  }
+}, 5 * 60 * 1000);
 
 server.listen(port, host, () => {
   console.log(`Server is running on http://${host}:${port}`);
