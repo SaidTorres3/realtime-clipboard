@@ -334,8 +334,14 @@
           .then((html) => {
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, "text/html");
-            fileList.innerHTML = doc.getElementById("file-list").innerHTML;
-            attachDeleteEventListeners(); // Re-attach event listeners after updating the file list
+            const newFileList = doc.getElementById("file-list");
+            if (newFileList) {
+              fileList.innerHTML = newFileList.innerHTML;
+              attachDeleteEventListeners(); // Re-attach event listeners after updating the file list
+            }
+          })
+          .catch((error) => {
+            console.error('Error updating file list:', error);
           });
       });
 
@@ -694,6 +700,9 @@
         
         // Remove from active uploads when completed successfully
         activeUploads.delete(uploadId);
+        
+        // Force a file update to refresh the list
+        socket.emit("fileUpdate");
       }
 
       function attachDeleteEventListeners() {

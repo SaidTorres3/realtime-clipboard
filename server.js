@@ -74,13 +74,26 @@ const removeAccents = (str) => {
 
 // Helper functions for environment management
 const getEnvironmentName = (req) => {
-  const routePath = req.path.slice(1); // Remove leading slash
-  return routePath === '' ? 'default' : sanitizeFilename(routePath) || 'default';
+  let routePath = req.path.slice(1); // Remove leading slash
+  
+  // Handle upload paths - extract environment from /:environment/upload
+  if (routePath.endsWith('/upload')) {
+    routePath = routePath.slice(0, -7); // Remove '/upload' suffix
+  }
+  
+  // Handle other endpoint paths like /:environment/files, etc.
+  const pathParts = routePath.split('/');
+  if (pathParts.length > 1) {
+    // Take the first part as the environment name
+    routePath = pathParts[0];
+  }
+  
+  return routePath === '' || routePath === 'upload' ? 'default' : sanitizeFilename(routePath) || 'default';
 };
 
-const getEnvironmentUploadsDir = (environmentName) => {
+const getEnvironmentUploadsDir = (environmentName, createIfNotExists = false) => {
   const envDir = path.join(uploadsDir, environmentName);
-  if (!fs.existsSync(envDir)) {
+  if (createIfNotExists && !fs.existsSync(envDir)) {
     fs.mkdirSync(envDir, { recursive: true });
   }
   return envDir;
@@ -90,11 +103,94 @@ const getEnvironmentTextFile = (environmentName) => {
   return path.join(sharedTextDir, `${environmentName}.txt`);
 };
 
+// Check if environment has any content (files or non-empty text)
+const hasEnvironmentContent = (environmentName) => {
+  const envDir = getEnvironmentUploadsDir(environmentName, false);
+  const textFile = getEnvironmentTextFile(environmentName);
+  
+  // Check if upload directory exists and has files
+  let hasFiles = false;
+  if (fs.existsSync(envDir)) {
+    try {
+      const files = fs.readdirSync(envDir);
+      hasFiles = files.length > 0;
+    } catch (err) {
+      console.error('Error reading environment directory:', err);
+    }
+  }
+  
+  // Check if text file exists and has content
+  let hasText = false;
+  if (fs.existsSync(textFile)) {
+    try {
+      const text = fs.readFileSync(textFile, 'utf8');
+      hasText = text.trim().length > 0;
+    } catch (err) {
+      console.error('Error reading text file:', err);
+    }
+  }
+  
+  // Also check cached text for environments that might have content in memory but no file yet
+  if (!hasText && sharedTextCache.has(environmentName)) {
+    const cachedText = sharedTextCache.get(environmentName);
+    hasText = cachedText.trim().length > 0;
+  }
+  
+  return hasFiles || hasText;
+};
+
+// Clean up empty environment directories and text files
+const cleanupEmptyEnvironment = (environmentName) => {
+  // Don't clean up the default environment
+  if (environmentName === 'default') {
+    return;
+  }
+  
+  if (!hasEnvironmentContent(environmentName)) {
+    const envDir = getEnvironmentUploadsDir(environmentName, false);
+    const textFile = getEnvironmentTextFile(environmentName);
+    
+    // Remove empty upload directory
+    if (fs.existsSync(envDir)) {
+      try {
+        const files = fs.readdirSync(envDir);
+        if (files.length === 0) {
+          fs.rmdirSync(envDir);
+          console.log(`Cleaned up empty environment directory: ${envDir}`);
+        }
+      } catch (err) {
+        console.error('Error cleaning up environment directory:', err);
+      }
+    }
+    
+    // Remove empty text file
+    if (fs.existsSync(textFile)) {
+      try {
+        const text = fs.readFileSync(textFile, 'utf8');
+        if (text.trim().length === 0) {
+          fs.unlinkSync(textFile);
+          console.log(`Cleaned up empty text file: ${textFile}`);
+        }
+      } catch (err) {
+        console.error('Error cleaning up text file:', err);
+      }
+    }
+    
+    // Remove from cache if empty
+    if (sharedTextCache.has(environmentName)) {
+      const cachedText = sharedTextCache.get(environmentName);
+      if (cachedText.trim().length === 0) {
+        sharedTextCache.delete(environmentName);
+      }
+    }
+  }
+};
+
 // Setup storage for multer with sanitized filename and environment separation
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const environmentName = getEnvironmentName(req);
-    const envUploadsDir = getEnvironmentUploadsDir(environmentName);
+    const envUploadsDir = getEnvironmentUploadsDir(environmentName, true); // Create directory when file is uploaded
     cb(null, envUploadsDir);
   },
   filename: (req, file, cb) => {
@@ -128,7 +224,7 @@ const readSharedTextFromFile = (environmentName) => {
     return text;
   } catch (err) {
     if (err.code === 'ENOENT') {
-      fs.writeFileSync(textFile, '', 'utf8');
+      // Don't create empty file, just cache empty string
       sharedTextCache.set(environmentName, '');
       return '';
     } else {
@@ -141,8 +237,28 @@ const readSharedTextFromFile = (environmentName) => {
 
 const writeSharedTextToFile = (environmentName, text) => {
   const textFile = getEnvironmentTextFile(environmentName);
-  fs.writeFileSync(textFile, text, 'utf8');
+  
+  // Only create and write file if there's actual content
+  if (text.trim().length > 0) {
+    // Ensure the sharedText directory exists
+    if (!fs.existsSync(sharedTextDir)) {
+      fs.mkdirSync(sharedTextDir, { recursive: true });
+    }
+    fs.writeFileSync(textFile, text, 'utf8');
+  } else if (fs.existsSync(textFile)) {
+    // If text is empty but file exists, delete it
+    try {
+      fs.unlinkSync(textFile);
+      console.log(`Deleted empty text file: ${textFile}`);
+    } catch (err) {
+      console.error('Error deleting empty text file:', err);
+    }
+  }
+  
   sharedTextCache.set(environmentName, text);
+  
+  // Clean up empty environment after text update
+  setTimeout(() => cleanupEmptyEnvironment(environmentName), 1000);
 };
 
 const getSharedText = (environmentName) => {
@@ -161,24 +277,34 @@ app.use(express.static(__dirname + '/views'));
 app.get('/:environment?', (req, res) => {
   const environmentName = req.params.environment || 'default';
   const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
-  const envUploadsDir = getEnvironmentUploadsDir(sanitizedEnv);
+  const envUploadsDir = getEnvironmentUploadsDir(sanitizedEnv, false); // Don't create directory just for viewing
   const sharedText = getSharedText(sanitizedEnv);
   
   const userAgent = req.headers['user-agent'] || '';
   if (userAgent.includes('curl') || userAgent.includes('wget') || userAgent.includes('PowerShell') || req.query.textonly) {
     res.send(sharedText + '\n');
   } else {
-    fs.readdir(envUploadsDir, (err, files) => {
-      if (err) {
-        console.error('Error reading environment directory:', err);
-        files = [];
-      }
+    // Only try to read directory if it exists
+    if (fs.existsSync(envUploadsDir)) {
+      fs.readdir(envUploadsDir, (err, files) => {
+        if (err) {
+          console.error('Error reading environment directory:', err);
+          files = [];
+        }
+        res.render('index', { 
+          files, 
+          environmentName: sanitizedEnv,
+          environmentPath: req.params.environment ? `/${req.params.environment}` : ''
+        });
+      });
+    } else {
+      // Directory doesn't exist, so no files
       res.render('index', { 
-        files, 
+        files: [], 
         environmentName: sanitizedEnv,
         environmentPath: req.params.environment ? `/${req.params.environment}` : ''
       });
-    });
+    }
   }
 });
 
@@ -199,35 +325,53 @@ app.put('/:environment?', (req, res) => {
 app.get('/:environment/files', (req, res) => {
   const environmentName = req.params.environment || 'default';
   const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
-  const envUploadsDir = getEnvironmentUploadsDir(sanitizedEnv);
+  const envUploadsDir = getEnvironmentUploadsDir(sanitizedEnv, false);
   
-  fs.readdir(envUploadsDir, (err, files) => {
-    if (err) {
-      console.error('Error reading environment files:', err);
-      files = [];
-    }
+  if (fs.existsSync(envUploadsDir)) {
+    fs.readdir(envUploadsDir, (err, files) => {
+      if (err) {
+        console.error('Error reading environment files:', err);
+        files = [];
+      }
+      if (req.query.json) {
+        res.json(files);
+      } else {
+        res.send(files.join('\n') + '\n');
+      }
+    });
+  } else {
+    // Directory doesn't exist, return empty list
     if (req.query.json) {
-      res.json(files);
+      res.json([]);
     } else {
-      res.send(files.join('\n') + '\n');
+      res.send('\n');
     }
-  });
+  }
 });
 
 // Keep backward compatibility for root route
 app.get('/files', (req, res) => {
-  const envUploadsDir = getEnvironmentUploadsDir('default');
-  fs.readdir(envUploadsDir, (err, files) => {
-    if (err) {
-      console.error('Error reading default files:', err);
-      files = [];
-    }
+  const envUploadsDir = getEnvironmentUploadsDir('default', false);
+  if (fs.existsSync(envUploadsDir)) {
+    fs.readdir(envUploadsDir, (err, files) => {
+      if (err) {
+        console.error('Error reading default files:', err);
+        files = [];
+      }
+      if (req.query.json) {
+        res.json(files);
+      } else {
+        res.send(files.join('\n') + '\n');
+      }
+    });
+  } else {
+    // Directory doesn't exist, return empty list
     if (req.query.json) {
-      res.json(files);
+      res.json([]);
     } else {
-      res.send(files.join('\n') + '\n');
+      res.send('\n');
     }
-  });
+  }
 });
 
 app.get('/:environment/files/:filename', (req, res) => {
@@ -467,7 +611,7 @@ app.post('/:environment/upload/complete', (req, res) => {
 
   try {
     // Combine all chunks into final file in the correct environment directory
-    const envUploadsDir = getEnvironmentUploadsDir(session.environmentName || sanitizedEnv);
+    const envUploadsDir = getEnvironmentUploadsDir(session.environmentName || sanitizedEnv, true); // Create directory when completing upload
     const finalPath = path.join(envUploadsDir, session.fileName);
     const chunks = [];
 
@@ -497,7 +641,9 @@ app.post('/:environment/upload/complete', (req, res) => {
     // Clean up session
     uploadSessions.delete(uploadId);
     
+    // Emit to both the environment room and broadcast to all (for better compatibility)
     io.to(session.environmentName || sanitizedEnv).emit('fileUpdate');
+    io.emit('fileUpdate'); // Broadcast to all for better compatibility
     res.json({ success: true, fileName: session.fileName });
     
   } catch (error) {
@@ -538,7 +684,7 @@ app.post('/upload/complete', (req, res) => {
 
   try {
     // Combine all chunks into final file in the default environment
-    const envUploadsDir = getEnvironmentUploadsDir(session.environmentName || 'default');
+    const envUploadsDir = getEnvironmentUploadsDir(session.environmentName || 'default', true); // Create directory when completing upload
     const finalPath = path.join(envUploadsDir, session.fileName);
     const chunks = [];
 
@@ -568,7 +714,9 @@ app.post('/upload/complete', (req, res) => {
     // Clean up session
     uploadSessions.delete(uploadId);
     
+    // Emit to both the environment room and broadcast to all (for better compatibility)
     io.to(session.environmentName || 'default').emit('fileUpdate');
+    io.emit('fileUpdate'); // Broadcast to all for better compatibility
     res.json({ success: true, fileName: session.fileName });
     
   } catch (error) {
@@ -745,18 +893,24 @@ app.post('/:environment/upload', (req, res) => {
     }
 
     if (req.files.length === 1) {
+      // Emit to both the environment room and broadcast to all (for better compatibility)
       io.to(sanitizedEnv).emit('fileUpdate');
+      io.emit('fileUpdate'); // Broadcast to all for better compatibility
       if (req.headers['user-agent'] && (req.headers['user-agent'].includes('curl')) || userAgent.includes('wget')) {
         return res.status(200).send('Single file uploaded successfully' + '\n');
       } else {
-        return res.redirect(`/${req.params.environment}`);
+        const redirectPath = req.params.environment ? `/${req.params.environment}` : '/';
+        return res.redirect(redirectPath);
       }
     } else {
+      // Emit to both the environment room and broadcast to all (for better compatibility)
       io.to(sanitizedEnv).emit('fileUpdate');
+      io.emit('fileUpdate'); // Broadcast to all for better compatibility
       if (req.headers['user-agent'] && (req.headers['user-agent'].includes('curl') || userAgent.includes('wget'))) {
         return res.status(200).send('Multiple files uploaded successfully' + '\n');
       } else {
-        return res.redirect(`/${req.params.environment}`);
+        const redirectPath = req.params.environment ? `/${req.params.environment}` : '/';
+        return res.redirect(redirectPath);
       }
     }
   });
@@ -776,14 +930,18 @@ app.post('/upload', (req, res) => {
     }
 
     if (req.files.length === 1) {
+      // Emit to both the default room and broadcast to all (for better compatibility)
       io.to('default').emit('fileUpdate');
+      io.emit('fileUpdate'); // Broadcast to all for better compatibility
       if (req.headers['user-agent'] && (req.headers['user-agent'].includes('curl')) || userAgent.includes('wget')) {
         return res.status(200).send('Single file uploaded successfully' + '\n');
       } else {
         return res.redirect('/');
       }
     } else {
+      // Emit to both the default room and broadcast to all (for better compatibility)
       io.to('default').emit('fileUpdate');
+      io.emit('fileUpdate'); // Broadcast to all for better compatibility
       if (req.headers['user-agent'] && (req.headers['user-agent'].includes('curl') || userAgent.includes('wget'))) {
         return res.status(200).send('Multiple files uploaded successfully' + '\n');
       } else {
@@ -798,7 +956,7 @@ app.delete('/:environment/files/:filename', (req, res) => {
   const environmentName = req.params.environment || 'default';
   const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
   const filename = sanitizeFilename(req.params.filename);
-  const envUploadsDir = getEnvironmentUploadsDir(sanitizedEnv);
+  const envUploadsDir = getEnvironmentUploadsDir(sanitizedEnv, false);
   const filePath = path.join(envUploadsDir, filename);
 
   fs.unlink(filePath, (err) => {
@@ -813,8 +971,13 @@ app.delete('/:environment/files/:filename', (req, res) => {
         res.status(500).send('Error deleting the file' + '\n');
       }
     } else {
+      // Emit to both the environment room and broadcast to all (for better compatibility)
       io.to(sanitizedEnv).emit('fileUpdate');
+      io.emit('fileUpdate'); // Broadcast to all for better compatibility
       res.status(200).send('File deleted successfully' + '\n');
+      
+      // Clean up empty environment after file deletion
+      setTimeout(() => cleanupEmptyEnvironment(sanitizedEnv), 1000);
     }
   });
 });
@@ -822,7 +985,7 @@ app.delete('/:environment/files/:filename', (req, res) => {
 // Backward compatibility for root route
 app.delete('/files/:filename', (req, res) => {
   const filename = sanitizeFilename(req.params.filename);
-  const envUploadsDir = getEnvironmentUploadsDir('default');
+  const envUploadsDir = getEnvironmentUploadsDir('default', false);
   const filePath = path.join(envUploadsDir, filename);
 
   fs.unlink(filePath, (err) => {
@@ -837,8 +1000,12 @@ app.delete('/files/:filename', (req, res) => {
         res.status(500).send('Error deleting the file' + '\n');
       }
     } else {
+      // Emit to both the default room and broadcast to all (for better compatibility)
       io.to('default').emit('fileUpdate');
+      io.emit('fileUpdate'); // Broadcast to all for better compatibility
       res.status(200).send('File deleted successfully' + '\n');
+      
+      // Note: Don't cleanup default environment automatically
     }
   });
 });
@@ -865,14 +1032,23 @@ io.on('connection', (socket) => {
   });
 
   socket.on('fileUpdate', () => {
-    const envUploadsDir = getEnvironmentUploadsDir(currentEnvironment);
-    fs.readdir(envUploadsDir, (err, files) => {
-      if (err) {
-        console.error('Error reading environment files:', err);
-        files = [];
-      }
-      io.to(currentEnvironment).emit('fileList', files);
-    });
+    const envUploadsDir = getEnvironmentUploadsDir(currentEnvironment, false);
+    if (fs.existsSync(envUploadsDir)) {
+      fs.readdir(envUploadsDir, (err, files) => {
+        if (err) {
+          console.error('Error reading environment files:', err);
+          files = [];
+        }
+        io.to(currentEnvironment).emit('fileList', files);
+        // Also emit a general fileUpdate for better compatibility
+        io.to(currentEnvironment).emit('fileUpdate');
+      });
+    } else {
+      // Directory doesn't exist, emit empty file list
+      io.to(currentEnvironment).emit('fileList', []);
+      // Also emit a general fileUpdate for better compatibility
+      io.to(currentEnvironment).emit('fileUpdate');
+    }
   });
 });
 
@@ -999,6 +1175,42 @@ setInterval(cleanupUploadSessions, 10 * 1000);
 
 // Also run cleanup immediately to handle current orphaned files
 setTimeout(cleanupUploadSessions, 1000);
+
+// Periodic cleanup of empty environments (every 5 minutes)
+const cleanupAllEmptyEnvironments = () => {
+  console.log('Running periodic cleanup of empty environments...');
+  
+  // Check uploads directory for empty environment folders
+  if (fs.existsSync(uploadsDir)) {
+    try {
+      const environments = fs.readdirSync(uploadsDir);
+      environments.forEach(env => {
+        if (env !== 'default') { // Never cleanup default
+          cleanupEmptyEnvironment(env);
+        }
+      });
+    } catch (err) {
+      console.error('Error during periodic environment cleanup:', err);
+    }
+  }
+  
+  // Check sharedText directory for empty text files
+  if (fs.existsSync(sharedTextDir)) {
+    try {
+      const textFiles = fs.readdirSync(sharedTextDir);
+      textFiles.forEach(file => {
+        const envName = file.replace('.txt', '');
+        if (envName !== 'default') { // Never cleanup default
+          cleanupEmptyEnvironment(envName);
+        }
+      });
+    } catch (err) {
+      console.error('Error during periodic text cleanup:', err);
+    }
+  }
+};
+
+setInterval(cleanupAllEmptyEnvironments, 5 * 60 * 1000); // Run every 5 minutes
 
 server.listen(port, host, () => {
   console.log(`Server is running on http://${host}:${port}`);
