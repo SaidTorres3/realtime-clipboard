@@ -227,7 +227,17 @@
       <div id="chunk-progress-section" style="display: none;">
         <div class="flex justify-between items-center mb-1">
           <span class="text-xs text-gray-300" id="chunk-label">Current Chunk</span>
-          <span id="chunk-percentage" class="text-xs text-gray-300">0%</span>
+          <div class="flex items-center gap-2">
+            <span id="chunk-percentage" class="text-xs text-gray-300">0%</span>
+            <button 
+              id="cancel-upload-btn" 
+              class="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-0.5 rounded transition-colors duration-200"
+              onclick="cancelAllUploads()"
+              title="Cancel upload"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
         <div class="w-full bg-gray-600 rounded-full h-1.5">
           <div id="chunk-progress-bar" class="h-1.5 bg-blue-400 rounded-full transition-all duration-150" style="width: 0%"></div>
@@ -256,6 +266,43 @@
       const chunkProgressBar = document.getElementById("chunk-progress-bar");
       const chunkPercentage = document.getElementById("chunk-percentage");
       const chunkLabel = document.getElementById("chunk-label");
+
+      // Track active uploads for cleanup
+      let activeUploads = new Set();
+      
+      // Handle page unload/close - cancel active uploads
+      window.addEventListener('beforeunload', function(event) {
+        if (activeUploads.size > 0) {
+          // Cancel all active uploads
+          activeUploads.forEach(uploadId => {
+            // Use sendBeacon for reliable delivery during page unload
+            navigator.sendBeacon(`/upload/cancel/${uploadId}`);
+          });
+          
+          // Optional: Show a warning if user tries to leave during upload
+          event.preventDefault();
+          event.returnValue = 'Upload in progress. Are you sure you want to leave?';
+          return event.returnValue;
+        }
+      });
+      
+      // Handle visibility change (tab switch, minimize)
+      document.addEventListener('visibilitychange', function() {
+        if (document.hidden && activeUploads.size > 0) {
+          console.log('Page hidden with active uploads, monitoring for cleanup...');
+          
+          // Start a timer to cancel uploads if page stays hidden too long
+          setTimeout(() => {
+            if (document.hidden && activeUploads.size > 0) {
+              console.log('Page still hidden after 5 minutes, canceling uploads...');
+              activeUploads.forEach(uploadId => {
+                fetch(`/upload/cancel/${uploadId}`, { method: 'DELETE' })
+                  .catch(err => console.log('Failed to cancel upload:', err));
+              });
+            }
+          }, 5 * 60 * 1000); // 5 minutes
+        }
+      });
 
       socket.on("textUpdate", (text) => {
         textarea.value = text;
@@ -345,6 +392,40 @@
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      }
+
+      // Function to cancel all active uploads
+      function cancelAllUploads() {
+        if (activeUploads.size === 0) {
+          alert('No active uploads to cancel.');
+          return;
+        }
+        
+        const uploadCount = activeUploads.size;
+        if (confirm(`Are you sure you want to cancel ${uploadCount} active upload(s)?`)) {
+          console.log(`Canceling ${uploadCount} active uploads...`);
+          
+          activeUploads.forEach(async (uploadId) => {
+            try {
+              await fetch(`/upload/cancel/${uploadId}`, { method: 'DELETE' });
+              console.log(`Canceled upload: ${uploadId}`);
+            } catch (error) {
+              console.error(`Failed to cancel upload ${uploadId}:`, error);
+            }
+          });
+          
+          activeUploads.clear();
+          
+          // Hide progress bars and show cancellation message
+          progressContainer.style.display = "none";
+          overallProgressBar.style.width = "0%";
+          overallPercentage.textContent = "0%";
+          chunkProgressBar.style.width = "0%";
+          chunkPercentage.textContent = "0%";
+          chunkProgressSection.style.display = "none";
+          
+          alert('Upload(s) canceled successfully. Files will be cleaned up shortly.');
+        }
       }
 
       function uploadFiles(files) {
@@ -440,6 +521,14 @@
           console.error('Upload failed:', error);
           progressText.textContent = "❌ Upload failed!";
           chunkProgressSection.style.display = "none";
+          
+          // Cancel any active uploads on error
+          activeUploads.forEach(uploadId => {
+            fetch(`/upload/cancel/${uploadId}`, { method: 'DELETE' })
+              .catch(err => console.log('Failed to cancel upload after error:', err));
+          });
+          activeUploads.clear();
+          
           alert('Upload failed: ' + error.message);
           setTimeout(() => {
             progressText.textContent = "";
@@ -503,6 +592,9 @@
         }
 
         const { uploadId } = await initResponse.json();
+        
+        // Track this upload for cleanup
+        activeUploads.add(uploadId);
         
         // Upload chunks sequentially with progress tracking
         for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
@@ -583,6 +675,9 @@
           console.error('Complete upload error:', errorText);
           throw new Error(`Failed to complete upload for ${file.name}: ${errorText}`);
         }
+        
+        // Remove from active uploads when completed successfully
+        activeUploads.delete(uploadId);
       }
 
       function attachDeleteEventListeners() {

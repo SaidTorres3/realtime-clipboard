@@ -32,6 +32,33 @@ if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir);
 }
 
+// Clean up any orphaned temp files from previous runs
+function cleanupOrphanedTempFiles() {
+  try {
+    const tempFiles = fs.readdirSync(tempDir);
+    let cleanedCount = 0;
+    
+    tempFiles.forEach(file => {
+      const filePath = path.join(tempDir, file);
+      try {
+        fs.unlinkSync(filePath);
+        cleanedCount++;
+      } catch (error) {
+        console.error(`Error cleaning up temp file ${file}:`, error.message);
+      }
+    });
+    
+    if (cleanedCount > 0) {
+      console.log(`Cleaned up ${cleanedCount} orphaned temp files from previous run`);
+    }
+  } catch (error) {
+    console.error('Error during temp file cleanup:', error.message);
+  }
+}
+
+// Clean up orphaned files on startup
+cleanupOrphanedTempFiles();
+
 // Store active upload sessions
 const uploadSessions = new Map();
 
@@ -207,6 +234,7 @@ app.post('/upload/chunk', (req, res) => {
     
     session.chunks.set(chunkIndex, chunkPath);
     session.uploadedChunks++;
+    session.lastActivity = new Date(); // Track activity for stale session detection
 
     res.json({ 
       success: true, 
@@ -308,6 +336,61 @@ app.get('/upload/status/:uploadId', (req, res) => {
   });
 });
 
+app.delete('/upload/cancel/:uploadId', (req, res) => {
+  const { uploadId } = req.params;
+  const session = uploadSessions.get(uploadId);
+  
+  if (!session) {
+    return res.status(404).json({ error: 'Upload session not found' });
+  }
+
+  console.log(`Canceling upload session: ${uploadId} for file: ${session.originalFileName}`);
+  
+  // Mark session for delayed cleanup (30 seconds)
+  session.canceledAt = new Date();
+  session.status = 'canceled';
+  
+  res.json({ success: true, message: 'Upload session marked for cancellation' });
+});
+
+// Manual cleanup endpoint for debugging
+app.post('/upload/cleanup', (req, res) => {
+  console.log('Manual cleanup triggered');
+  
+  const beforeCount = uploadSessions.size;
+  
+  // Get temp files count before cleanup
+  let tempFilesBefore = 0;
+  try {
+    tempFilesBefore = fs.readdirSync(tempDir).length;
+  } catch (error) {
+    console.error('Error reading temp directory:', error);
+  }
+  
+  // Run cleanup
+  cleanupUploadSessions();
+  
+  const afterCount = uploadSessions.size;
+  
+  // Get temp files count after cleanup
+  let tempFilesAfter = 0;
+  try {
+    tempFilesAfter = fs.readdirSync(tempDir).length;
+  } catch (error) {
+    console.error('Error reading temp directory:', error);
+  }
+  
+  const result = {
+    sessionsCleanedUp: beforeCount - afterCount,
+    activeSessions: afterCount,
+    tempFilesCleanedUp: tempFilesBefore - tempFilesAfter,
+    remainingTempFiles: tempFilesAfter
+  };
+  
+  console.log('Manual cleanup result:', result);
+  res.json(result);
+});
+
 app.post('/upload', (req, res) => {
   const userAgent = req.headers['user-agent'] || '';
 
@@ -389,37 +472,117 @@ const getLocalIPAddress = () => {
   return 'localhost';
 };
 
-// Cleanup expired upload sessions (every 5 minutes)
-setInterval(() => {
+// Enhanced cleanup for expired and canceled upload sessions
+function cleanupUploadSessions() {
   const now = new Date();
-  const expired = [];
+  const toCleanup = [];
   
   uploadSessions.forEach((session, uploadId) => {
     const age = now - session.createdAt;
     const maxAge = 30 * 60 * 1000; // 30 minutes
     
+    let shouldCleanup = false;
+    let reason = '';
+    
+    // Check if session is expired
     if (age > maxAge) {
-      expired.push({ uploadId, session });
+      shouldCleanup = true;
+      reason = 'expired';
+    }
+    
+    // Check if session was canceled and enough time has passed
+    if (session.status === 'canceled' && session.canceledAt) {
+      shouldCleanup = true;
+      reason = 'canceled';
+    }
+    
+    // Check for stale sessions (no activity for 2 minutes) - much more aggressive
+    const lastActivity = session.lastActivity || session.createdAt;
+    const timeSinceActivity = now - lastActivity;
+    const staleThreshold = 2 * 60 * 1000; // 2 minutes instead of 10
+    
+    if (timeSinceActivity > staleThreshold && session.status !== 'canceled') {
+      shouldCleanup = true;
+      reason = 'stale';
+    }
+    
+    if (shouldCleanup) {
+      toCleanup.push({ uploadId, session, reason });
     }
   });
   
-  expired.forEach(({ uploadId, session }) => {
-    console.log(`Cleaning up expired upload session: ${uploadId}`);
+  // Also clean up orphaned chunk files that don't belong to any active session
+  cleanupOrphanedChunks();
+  
+  // Perform cleanup
+  toCleanup.forEach(({ uploadId, session, reason }) => {
+    console.log(`Cleaning up ${reason} upload session: ${uploadId} (${session.originalFileName})`);
     
     // Clean up chunk files
+    let cleanedChunks = 0;
     session.chunks.forEach(chunkPath => {
-      if (fs.existsSync(chunkPath)) {
-        fs.unlinkSync(chunkPath);
+      try {
+        if (fs.existsSync(chunkPath)) {
+          fs.unlinkSync(chunkPath);
+          cleanedChunks++;
+        }
+      } catch (error) {
+        console.error(`Error deleting chunk file ${chunkPath}:`, error.message);
       }
     });
+    
+    if (cleanedChunks > 0) {
+      console.log(`  → Cleaned up ${cleanedChunks} chunk files`);
+    }
     
     uploadSessions.delete(uploadId);
   });
   
-  if (expired.length > 0) {
-    console.log(`Cleaned up ${expired.length} expired upload sessions`);
+  if (toCleanup.length > 0) {
+    console.log(`Cleanup completed: ${toCleanup.length} sessions processed`);
   }
-}, 5 * 60 * 1000);
+}
+
+// Function to clean up orphaned chunks that don't belong to any active session
+function cleanupOrphanedChunks() {
+  try {
+    const tempFiles = fs.readdirSync(tempDir);
+    const activeUploadIds = new Set(Array.from(uploadSessions.keys()));
+    let orphanedCount = 0;
+    
+    tempFiles.forEach(file => {
+      // Extract uploadId from chunk filename (format: uploadId_chunk_index)
+      const uploadIdMatch = file.match(/^([^_]+)_chunk_\d+$/);
+      
+      if (uploadIdMatch) {
+        const uploadId = uploadIdMatch[1];
+        
+        // If this chunk doesn't belong to any active session, it's orphaned
+        if (!activeUploadIds.has(uploadId)) {
+          const filePath = path.join(tempDir, file);
+          try {
+            fs.unlinkSync(filePath);
+            orphanedCount++;
+          } catch (error) {
+            console.error(`Error deleting orphaned chunk ${file}:`, error.message);
+          }
+        }
+      }
+    });
+    
+    if (orphanedCount > 0) {
+      console.log(`Cleaned up ${orphanedCount} orphaned chunk files`);
+    }
+  } catch (error) {
+    console.error('Error during orphaned chunk cleanup:', error.message);
+  }
+}
+
+// Run cleanup every 10 seconds for better responsiveness
+setInterval(cleanupUploadSessions, 10 * 1000);
+
+// Also run cleanup immediately to handle current orphaned files
+setTimeout(cleanupUploadSessions, 1000);
 
 server.listen(port, host, () => {
   console.log(`Server is running on http://${host}:${port}`);
