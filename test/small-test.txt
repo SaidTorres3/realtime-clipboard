@@ -1,3 +1,0 @@
-This is a small test file to verify chunked upload functionality.
-It contains some sample text to make sure our implementation works correctly.
-This file should be small enough to use the regular upload path.

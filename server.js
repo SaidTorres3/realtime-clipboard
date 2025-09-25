@@ -246,8 +246,9 @@ app.post('/upload/complete', (req, res) => {
   try {
     // Combine all chunks into final file
     const finalPath = path.join(uploadsDir, session.fileName);
-    const writeStream = fs.createWriteStream(finalPath);
+    const chunks = [];
 
+    // Read all chunks first
     for (let i = 0; i < session.totalChunks; i++) {
       const chunkPath = session.chunks.get(i);
       if (!chunkPath || !fs.existsSync(chunkPath)) {
@@ -255,13 +256,20 @@ app.post('/upload/complete', (req, res) => {
       }
       
       const chunkData = fs.readFileSync(chunkPath);
-      writeStream.write(chunkData);
-      
-      // Clean up chunk file
-      fs.unlinkSync(chunkPath);
+      chunks.push(chunkData);
     }
 
-    writeStream.end();
+    // Combine all chunks and write to final file
+    const combinedData = Buffer.concat(chunks);
+    fs.writeFileSync(finalPath, combinedData);
+
+    // Clean up chunk files after successful write
+    for (let i = 0; i < session.totalChunks; i++) {
+      const chunkPath = session.chunks.get(i);
+      if (chunkPath && fs.existsSync(chunkPath)) {
+        fs.unlinkSync(chunkPath);
+      }
+    }
     
     // Clean up session
     uploadSessions.delete(uploadId);
