@@ -98,6 +98,20 @@ const isImageFile = (filename) => {
   return imageExtensions.includes(ext);
 };
 
+// Helper function to check if file is a text file
+const isTextFile = (filename) => {
+  const textExtensions = [
+    '.txt', '.md', '.json', '.xml', '.csv', '.log', '.yaml', '.yml',
+    '.js', '.ts', '.jsx', '.tsx', '.vue', '.svelte',
+    '.html', '.htm', '.css', '.scss', '.sass', '.less',
+    '.py', '.java', '.cpp', '.c', '.h', '.hpp', '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt',
+    '.sql', '.sh', '.bat', '.ps1', '.dockerfile', '.gitignore', '.env',
+    '.conf', '.config', '.ini', '.properties', '.toml'
+  ];
+  const ext = path.extname(filename).toLowerCase();
+  return textExtensions.includes(ext) || filename.toLowerCase() === 'readme' || filename.toLowerCase() === 'license';
+};
+
 const getEnvironmentUploadsDir = (environmentName, createIfNotExists = false) => {
   const envDir = path.join(uploadsDir, environmentName);
   if (createIfNotExists && !fs.existsSync(envDir)) {
@@ -288,7 +302,8 @@ const createNewVersion = (environmentName, originalFileName, fileSize, sourceFil
     fileName: versionFileName,
     uploadedAt: new Date().toISOString(),
     fileSize,
-    isImageFile: isImageFile(originalFileName)
+    isImageFile: isImageFile(originalFileName),
+    isTextFile: isTextFile(originalFileName)
   };
   
   // Update metadata
@@ -413,6 +428,7 @@ const getAllVersionedFiles = (environmentName) => {
           totalVersions: metadata.versions.length,
           versions: metadata.versions,
           isImageFile: isImageFile(fileName),
+          isTextFile: isTextFile(fileName),
           size: stats.size,
           lastModified: stats.mtime
         });
@@ -728,6 +744,134 @@ app.get('/files/:filename', (req, res) => {
       }
     }
   });
+});
+
+// Text preview endpoints
+app.get('/:environment/files/:filename/preview', (req, res) => {
+  const environmentName = req.params.environment || 'default';
+  const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
+  const filename = sanitizeFilename(req.params.filename);
+  
+  // Check if this is a text file
+  if (!isTextFile(filename)) {
+    return res.status(400).json({ error: 'File is not a text file' });
+  }
+  
+  // Check if a specific version is requested
+  const versionId = req.query.version;
+  let filepath;
+  
+  if (versionId) {
+    // Serve specific version
+    filepath = getFileVersionPath(sanitizedEnv, filename, versionId);
+    if (!filepath || !fs.existsSync(filepath)) {
+      return res.status(404).json({ error: 'Version not found' });
+    }
+  } else {
+    // Serve latest version (current file)
+    const envUploadsDir = getEnvironmentUploadsDir(sanitizedEnv);
+    filepath = path.join(envUploadsDir, filename);
+    
+    if (!fs.existsSync(filepath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+  }
+
+  try {
+    // Check file size to prevent loading very large files
+    const stats = fs.statSync(filepath);
+    const maxPreviewSize = 1024 * 1024; // 1MB limit for preview
+    
+    if (stats.size > maxPreviewSize) {
+      return res.status(413).json({ 
+        error: 'File too large for preview', 
+        maxSize: maxPreviewSize,
+        actualSize: stats.size
+      });
+    }
+    
+    const content = fs.readFileSync(filepath, 'utf8');
+    const ext = path.extname(filename).toLowerCase();
+    
+    res.json({
+      filename: filename,
+      extension: ext,
+      size: stats.size,
+      content: content
+    });
+  } catch (error) {
+    console.error('Error reading file for preview:', error);
+    if (error.code === 'ENOENT') {
+      res.status(404).json({ error: 'File not found' });
+    } else if (error.message.includes('invalid encoding')) {
+      res.status(415).json({ error: 'File contains binary data and cannot be previewed as text' });
+    } else {
+      res.status(500).json({ error: 'Failed to read file' });
+    }
+  }
+});
+
+// Keep backward compatibility for root route
+app.get('/files/:filename/preview', (req, res) => {
+  const filename = sanitizeFilename(req.params.filename);
+  
+  // Check if this is a text file
+  if (!isTextFile(filename)) {
+    return res.status(400).json({ error: 'File is not a text file' });
+  }
+  
+  // Check if a specific version is requested
+  const versionId = req.query.version;
+  let filepath;
+  
+  if (versionId) {
+    // Serve specific version
+    filepath = getFileVersionPath('default', filename, versionId);
+    if (!filepath || !fs.existsSync(filepath)) {
+      return res.status(404).json({ error: 'Version not found' });
+    }
+  } else {
+    // Serve latest version (current file)
+    const envUploadsDir = getEnvironmentUploadsDir('default');
+    filepath = path.join(envUploadsDir, filename);
+    
+    if (!fs.existsSync(filepath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+  }
+
+  try {
+    // Check file size to prevent loading very large files
+    const stats = fs.statSync(filepath);
+    const maxPreviewSize = 1024 * 1024; // 1MB limit for preview
+    
+    if (stats.size > maxPreviewSize) {
+      return res.status(413).json({ 
+        error: 'File too large for preview', 
+        maxSize: maxPreviewSize,
+        actualSize: stats.size
+      });
+    }
+    
+    const content = fs.readFileSync(filepath, 'utf8');
+    const ext = path.extname(filename).toLowerCase();
+    
+    res.json({
+      filename: filename,
+      extension: ext,
+      size: stats.size,
+      content: content
+    });
+  } catch (error) {
+    console.error('Error reading file for preview:', error);
+    if (error.code === 'ENOENT') {
+      res.status(404).json({ error: 'File not found' });
+    } else if (error.message.includes('invalid encoding')) {
+      res.status(415).json({ error: 'File contains binary data and cannot be previewed as text' });
+    } else {
+      res.status(500).json({ error: 'Failed to read file' });
+    }
+  }
 });
 
 const upload = multer({ storage }).any();

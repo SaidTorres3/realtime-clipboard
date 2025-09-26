@@ -115,6 +115,7 @@
                 <% files.forEach(file => { 
                   const fileName = typeof file === 'string' ? file.name || file : file.originalFileName;
                   const isImage = typeof file === 'object' ? (file.isImageFile || file.isImage) : false;
+                  const isText = typeof file === 'object' ? file.isTextFile : false;
                   const totalVersions = typeof file === 'object' ? file.totalVersions : 1;
                   const hasMultipleVersions = totalVersions > 1;
                   
@@ -153,7 +154,7 @@
                     }
                   }
                 %>
-                <div class="file-item <%= isImage ? 'has-image' : '' %> <%= hasMultipleVersions ? 'has-versions' : '' %>" 
+                <div class="file-item <%= isImage ? 'has-image' : '' %> <%= isText ? 'has-text' : '' %> <%= hasMultipleVersions ? 'has-versions' : '' %>" 
                      data-filename="<%= fileName %>" 
                      data-versions="<%= totalVersions %>">
                   <div class="file-info">
@@ -167,6 +168,17 @@
                              loading="lazy" />
                         <div class="image-overlay">
                           <i class="fas fa-search-plus"></i>
+                        </div>
+                      </div>
+                    <% } else if (isText) { %>
+                      <div class="text-preview-icon" 
+                           data-preview-url="<%= typeof environmentPath !== 'undefined' ? environmentPath : '' %>/files/<%= fileName %>/preview"
+                           data-filename="<%= fileName %>">
+                        <div class="text-icon">
+                          <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="text-overlay">
+                          <i class="fas fa-eye"></i>
                         </div>
                       </div>
                     <% } else { %>
@@ -317,6 +329,20 @@ Start typing your shared content here...
       </div>
     </div>
 
+    <!-- Text Preview Modal -->
+    <div id="text-modal" class="image-modal">
+      <div class="modal-content text-modal-content">
+        <button class="modal-close" onclick="closeTextModal()">×</button>
+        <div class="text-modal-header">
+          <div id="text-modal-filename" class="modal-filename"></div>
+          <div id="text-modal-info" class="text-modal-info"></div>
+        </div>
+        <div class="text-modal-body">
+          <pre id="text-modal-content" class="text-content"></pre>
+        </div>
+      </div>
+    </div>
+
     <!-- Version Management Modal -->
     <div id="version-modal" class="image-modal">
       <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
@@ -454,6 +480,9 @@ Start typing your shared content here...
         // Setup file icons
         updateFileIcons();
         
+        // Setup text previews
+        setupTextPreviews();
+        
         // VNC performance check
         if (isVNCConnection()) {
           document.body.classList.add('no-animate');
@@ -463,10 +492,14 @@ Start typing your shared content here...
         // Add global click handlers to close modals when clicking outside
         document.addEventListener('click', function(e) {
           const imageModal = document.getElementById('image-modal');
+          const textModal = document.getElementById('text-modal');
           const versionModal = document.getElementById('version-modal');
           
           if (e.target === imageModal) {
             closeImageModal();
+          }
+          if (e.target === textModal) {
+            closeTextModal();
           }
           if (e.target === versionModal) {
             closeVersionModal();
@@ -477,10 +510,13 @@ Start typing your shared content here...
         document.addEventListener('keydown', function(e) {
           if (e.key === 'Escape') {
             const imageModal = document.getElementById('image-modal');
+            const textModal = document.getElementById('text-modal');
             const versionModal = document.getElementById('version-modal');
             
             if (imageModal.classList.contains('show')) {
               closeImageModal();
+            } else if (textModal.classList.contains('show')) {
+              closeTextModal();
             } else if (versionModal.classList.contains('show')) {
               closeVersionModal();
             }
@@ -558,6 +594,7 @@ Start typing your shared content here...
         
         // Setup hover functionality for image thumbnails
         setupImageThumbnails();
+        setupTextPreviews();
       }
       
       // Helper function to check if a file is an image
@@ -609,6 +646,86 @@ Start typing your shared content here...
             
             if (imageUrl && filename) {
               showImageModal(imageUrl, filename);
+            }
+          });
+        });
+      }
+
+      // Text preview functions
+      async function showTextModal(previewUrl, filename) {
+        console.log('Opening text preview for:', previewUrl, filename);
+        
+        const modal = document.getElementById('text-modal');
+        const modalFilename = document.getElementById('text-modal-filename');
+        const modalInfo = document.getElementById('text-modal-info');
+        const modalContent = document.getElementById('text-modal-content');
+        
+        // Show modal and loading state
+        modalFilename.textContent = filename;
+        modalInfo.textContent = 'Loading...';
+        modalContent.textContent = 'Loading file content...';
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        
+        try {
+          const response = await fetch(previewUrl);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          const data = await response.json();
+          
+          // Update modal content
+          modalInfo.textContent = `${data.extension.toUpperCase()} • ${formatFileSize(data.size)}`;
+          modalContent.textContent = data.content;
+          
+          // Add language class for basic syntax highlighting
+          modalContent.className = 'text-content';
+          const ext = data.extension.toLowerCase();
+          if (['.js', '.jsx'].includes(ext)) {
+            modalContent.classList.add('language-js');
+          } else if (['.html', '.htm'].includes(ext)) {
+            modalContent.classList.add('language-html');
+          } else if (ext === '.css') {
+            modalContent.classList.add('language-css');
+          } else if (ext === '.json') {
+            modalContent.classList.add('language-json');
+          }
+          
+        } catch (error) {
+          console.error('Error loading text preview:', error);
+          modalInfo.textContent = 'Error loading file';
+          modalContent.textContent = `Failed to load file content: ${error.message}`;
+        }
+      }
+      
+      function closeTextModal() {
+        const modal = document.getElementById('text-modal');
+        modal.classList.remove('show');
+        document.body.style.overflow = '';
+      }
+      
+      // Setup click functionality for text preview icons
+      function setupTextPreviews() {
+        document.querySelectorAll('.text-preview-icon').forEach(preview => {
+          // Remove existing event listeners to prevent duplicates
+          const newPreview = preview.cloneNode(true);
+          preview.parentNode.replaceChild(newPreview, preview);
+          
+          console.log('Setting up text preview click for:', newPreview);
+          
+          // Add click functionality
+          newPreview.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const previewUrl = this.getAttribute('data-preview-url');
+            const filename = this.getAttribute('data-filename');
+            
+            console.log('Text preview clicked:', previewUrl, filename);
+            
+            if (previewUrl && filename) {
+              showTextModal(previewUrl, filename);
             }
           });
         });
@@ -756,6 +873,7 @@ Start typing your shared content here...
             attachDeleteEventListeners();
             updateFileIcons();
             setupImageThumbnails();
+            setupTextPreviews();
             updateFileCounts();
           })
           .catch((error) => {
@@ -774,6 +892,7 @@ Start typing your shared content here...
                   attachDeleteEventListeners();
                   updateFileIcons();
                   setupImageThumbnails();
+                  setupTextPreviews();
                   updateFileCounts();
                 }
               })
@@ -798,13 +917,14 @@ Start typing your shared content here...
         const fileItems = files.map(file => {
           const fileName = file.originalFileName;
           const isImage = file.isImageFile;
+          const isText = file.isTextFile;
           const totalVersions = file.totalVersions;
           const hasMultipleVersions = totalVersions > 1;
           const uploadDate = file.currentVersion ? formatDate(file.currentVersion.uploadedAt) : 'Unknown';
           const fileSize = file.currentVersion ? formatFileSize(file.currentVersion.fileSize) : '';
           
           return `
-            <div class="file-item ${isImage ? 'has-image' : ''} ${hasMultipleVersions ? 'has-versions' : ''}" 
+            <div class="file-item ${isImage ? 'has-image' : ''} ${isText ? 'has-text' : ''} ${hasMultipleVersions ? 'has-versions' : ''}" 
                  data-filename="${fileName}" 
                  data-versions="${totalVersions}">
               <div class="file-info">
@@ -818,6 +938,17 @@ Start typing your shared content here...
                          loading="lazy" />
                     <div class="image-overlay">
                       <i class="fas fa-search-plus"></i>
+                    </div>
+                  </div>
+                ` : isText ? `
+                  <div class="text-preview-icon" 
+                       data-preview-url="${environmentPath}/files/${fileName}/preview"
+                       data-filename="${fileName}">
+                    <div class="text-icon">
+                      <i class="fas fa-file-alt"></i>
+                    </div>
+                    <div class="text-overlay">
+                      <i class="fas fa-eye"></i>
                     </div>
                   </div>
                 ` : `
@@ -1738,6 +1869,7 @@ Start typing your shared content here...
         updateFileCounts();
         updateFileIcons();
         setupImageThumbnails();
+        setupTextPreviews();
       });
 
       // Initialize immediately since we're in the document
@@ -1746,6 +1878,7 @@ Start typing your shared content here...
       updateFileCounts();
       updateFileIcons();
       setupImageThumbnails();
+      setupTextPreviews();
     </script>
   </body>
 </html>
