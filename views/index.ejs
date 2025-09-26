@@ -1060,7 +1060,7 @@
                   <i class="fas fa-plus-circle"></i>
                 </div>
                 <div class="upload-text">Drop files here or click to browse</div>
-                <div class="upload-subtext">Supports multiple files and large uploads</div>
+                <div class="upload-subtext">Files upload automatically • Supports multiple files and large uploads</div>
                 <input
                   id="file-input"
                   type="file"
@@ -1068,13 +1068,6 @@
                   multiple
                   style="display: none;"
                 />
-              </div>
-              
-              <div style="margin-top: 15px;">
-                <button type="submit" class="btn btn-primary w-full">
-                  <i class="fas fa-upload"></i>
-                  Upload Files
-                </button>
               </div>
             </form>
           </div>
@@ -1608,19 +1601,12 @@ Start typing your shared content here...
           });
       }
 
-      // Enhanced form handling
+      // Prevent accidental form submission (no submit button now)
       uploadForm.addEventListener("submit", (event) => {
         event.preventDefault();
-        const files = fileInput.files;
-        if (files.length > 0) {
-          uploadFiles(files);
-          fileInput.value = ''; // Clear input after upload
-        } else {
-          showNotification('Please select files to upload', 'warning');
-        }
       });
 
-      // File input change feedback
+      // Auto-upload on file selection
       fileInput.addEventListener('change', function(e) {
         const files = e.target.files;
         if (files.length > 0) {
@@ -1628,7 +1614,11 @@ Start typing your shared content here...
           const displayNames = fileNames.length > 3 
             ? fileNames.slice(0, 3).join(', ') + ` and ${fileNames.length - 3} more`
             : fileNames.join(', ');
-          showNotification(`📁 Selected: ${displayNames}`, 'info');
+          showNotification(`📁 Uploading: ${displayNames}`, 'info');
+          
+          // Automatically upload selected files
+          uploadFiles(files);
+          fileInput.value = ''; // Clear input after upload
         }
       });
 
