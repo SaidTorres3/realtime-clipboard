@@ -193,19 +193,250 @@ const cleanupEmptyEnvironment = (environmentName) => {
   }
 };
 
-// Setup storage for multer with sanitized filename and environment separation
+// File versioning system
+const getVersionsDir = (environmentName) => {
+  return path.join(getEnvironmentUploadsDir(environmentName, false), '.versions');
+};
+
+const getFileVersionsDir = (environmentName, originalFileName) => {
+  return path.join(getVersionsDir(environmentName), sanitizeFilename(originalFileName));
+};
+
+const getFileMetadataPath = (environmentName, originalFileName) => {
+  return path.join(getFileVersionsDir(environmentName, originalFileName), 'metadata.json');
+};
+
+// File version metadata structure
+const createFileMetadata = (originalFileName) => {
+  return {
+    originalFileName,
+    versions: [],
+    currentVersion: null
+  };
+};
+
+const addVersionToMetadata = (metadata, versionInfo) => {
+  metadata.versions.push(versionInfo);
+  // Sort versions by timestamp (newest first)
+  metadata.versions.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+  metadata.currentVersion = metadata.versions[0];
+  return metadata;
+};
+
+const readFileMetadata = (environmentName, originalFileName) => {
+  const metadataPath = getFileMetadataPath(environmentName, originalFileName);
+  try {
+    if (fs.existsSync(metadataPath)) {
+      const data = fs.readFileSync(metadataPath, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('Error reading file metadata:', error);
+  }
+  return createFileMetadata(originalFileName);
+};
+
+const writeFileMetadata = (environmentName, originalFileName, metadata) => {
+  const metadataPath = getFileMetadataPath(environmentName, originalFileName);
+  const versionsDir = getFileVersionsDir(environmentName, originalFileName);
+  
+  try {
+    if (!fs.existsSync(versionsDir)) {
+      fs.mkdirSync(versionsDir, { recursive: true });
+    }
+    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+  } catch (error) {
+    console.error('Error writing file metadata:', error);
+    throw error;
+  }
+};
+
+const createNewVersion = (environmentName, originalFileName, fileSize, sourceFilePath) => {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const versionId = `${timestamp}-${uuidv4().substring(0, 8)}`;
+  const ext = path.extname(originalFileName);
+  const versionFileName = `${versionId}${ext}`;
+  
+  const versionsDir = getFileVersionsDir(environmentName, originalFileName);
+  const versionFilePath = path.join(versionsDir, versionFileName);
+  const currentFilePath = path.join(getEnvironmentUploadsDir(environmentName, true), originalFileName);
+  
+  // Ensure versions directory exists
+  if (!fs.existsSync(versionsDir)) {
+    fs.mkdirSync(versionsDir, { recursive: true });
+  }
+  
+  // Read existing metadata
+  let metadata = readFileMetadata(environmentName, originalFileName);
+  
+  // If a current version exists, move it to versions directory
+  if (metadata.currentVersion && fs.existsSync(currentFilePath)) {
+    const oldVersionFileName = `${metadata.currentVersion.versionId}${ext}`;
+    const oldVersionPath = path.join(versionsDir, oldVersionFileName);
+    
+    if (!fs.existsSync(oldVersionPath)) {
+      fs.copyFileSync(currentFilePath, oldVersionPath);
+    }
+  }
+  
+  // Copy new file to current position
+  fs.copyFileSync(sourceFilePath, currentFilePath);
+  
+  // Create version info
+  const versionInfo = {
+    versionId,
+    fileName: versionFileName,
+    uploadedAt: new Date().toISOString(),
+    fileSize,
+    isImageFile: isImageFile(originalFileName)
+  };
+  
+  // Update metadata
+  metadata = addVersionToMetadata(metadata, versionInfo);
+  writeFileMetadata(environmentName, originalFileName, metadata);
+  
+  return { versionInfo, metadata, finalPath: currentFilePath };
+};
+
+const getLatestVersion = (environmentName, originalFileName) => {
+  const metadata = readFileMetadata(environmentName, originalFileName);
+  return metadata.currentVersion;
+};
+
+const getFileVersionPath = (environmentName, originalFileName, versionId) => {
+  const metadata = readFileMetadata(environmentName, originalFileName);
+  const version = metadata.versions.find(v => v.versionId === versionId);
+  
+  if (!version) {
+    return null;
+  }
+  
+  // If it's the current version, return the main file path
+  if (version.versionId === metadata.currentVersion?.versionId) {
+    return path.join(getEnvironmentUploadsDir(environmentName, false), originalFileName);
+  }
+  
+  // Otherwise, return the versioned file path
+  const versionsDir = getFileVersionsDir(environmentName, originalFileName);
+  return path.join(versionsDir, version.fileName);
+};
+
+const deleteFileVersion = (environmentName, originalFileName, versionId) => {
+  const metadata = readFileMetadata(environmentName, originalFileName);
+  const versionIndex = metadata.versions.findIndex(v => v.versionId === versionId);
+  
+  if (versionIndex === -1) {
+    throw new Error('Version not found');
+  }
+  
+  const version = metadata.versions[versionIndex];
+  const currentFilePath = path.join(getEnvironmentUploadsDir(environmentName, false), originalFileName);
+  
+  // If deleting the current version
+  if (version.versionId === metadata.currentVersion?.versionId) {
+    // Remove current file
+    if (fs.existsSync(currentFilePath)) {
+      fs.unlinkSync(currentFilePath);
+    }
+    
+    // Remove this version from metadata
+    metadata.versions.splice(versionIndex, 1);
+    
+    // If there are other versions, promote the next most recent one
+    if (metadata.versions.length > 0) {
+      metadata.versions.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+      metadata.currentVersion = metadata.versions[0];
+      
+      // Copy the new current version to main location
+      const newCurrentVersionPath = getFileVersionPath(environmentName, originalFileName, metadata.currentVersion.versionId);
+      if (fs.existsSync(newCurrentVersionPath)) {
+        fs.copyFileSync(newCurrentVersionPath, currentFilePath);
+      }
+    } else {
+      metadata.currentVersion = null;
+    }
+  } else {
+    // Deleting an older version
+    const versionPath = getFileVersionPath(environmentName, originalFileName, versionId);
+    if (fs.existsSync(versionPath)) {
+      fs.unlinkSync(versionPath);
+    }
+    metadata.versions.splice(versionIndex, 1);
+  }
+  
+  // Update or remove metadata
+  if (metadata.versions.length === 0) {
+    // Remove metadata file and directory if no versions left
+    const metadataPath = getFileMetadataPath(environmentName, originalFileName);
+    const versionsDir = getFileVersionsDir(environmentName, originalFileName);
+    
+    if (fs.existsSync(metadataPath)) {
+      fs.unlinkSync(metadataPath);
+    }
+    
+    if (fs.existsSync(versionsDir)) {
+      try {
+        fs.rmdirSync(versionsDir);
+      } catch (error) {
+        // Directory might not be empty, that's okay
+      }
+    }
+  } else {
+    writeFileMetadata(environmentName, originalFileName, metadata);
+  }
+  
+  return metadata;
+};
+
+const getAllVersionedFiles = (environmentName) => {
+  const envUploadsDir = getEnvironmentUploadsDir(environmentName, false);
+  const versionsDir = getVersionsDir(environmentName);
+  const files = [];
+  
+  // Get all files from main directory
+  if (fs.existsSync(envUploadsDir)) {
+    const mainFiles = fs.readdirSync(envUploadsDir);
+    
+    for (const fileName of mainFiles) {
+      if (fileName.startsWith('.')) {
+        continue; // Skip hidden directories like .versions
+      }
+      
+      const filePath = path.join(envUploadsDir, fileName);
+      const stats = fs.statSync(filePath);
+      
+      if (stats.isFile()) {
+        const metadata = readFileMetadata(environmentName, fileName);
+        files.push({
+          originalFileName: fileName,
+          currentVersion: metadata.currentVersion,
+          totalVersions: metadata.versions.length,
+          versions: metadata.versions,
+          isImageFile: isImageFile(fileName),
+          size: stats.size,
+          lastModified: stats.mtime
+        });
+      }
+    }
+  }
+  
+  return files;
+};
+
+// Setup storage for multer with versioned filename system
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const environmentName = getEnvironmentName(req);
-    const envUploadsDir = getEnvironmentUploadsDir(environmentName, true); // Create directory when file is uploaded
-    cb(null, envUploadsDir);
+    const tempDir = path.join(__dirname, 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    cb(null, tempDir); // Store in temp first, then move to versioned location
   },
   filename: (req, file, cb) => {
-    let originalName = file.originalname.replace(/\.[^.]+$/, ''); // Remove file extension
-    originalName = removeAccents(originalName); // Remove accents and special characters
-    originalName = sanitizeFilename(originalName); // Sanitize the filename
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
-    cb(null, `${originalName}-${randomSuffix}${path.extname(file.originalname)}`);
+    // Create a temporary filename for processing
+    const tempFileName = `upload-${Date.now()}-${uuidv4().substring(0, 8)}${path.extname(file.originalname)}`;
+    cb(null, tempFileName);
   }
 });
 
@@ -316,38 +547,23 @@ app.get('/:environment?', (req, res) => {
   if (userAgent.includes('curl') || userAgent.includes('wget') || userAgent.includes('PowerShell') || req.query.textonly) {
     res.send(sharedText + '\n');
   } else {
-    // Only try to read directory if it exists
-    if (fs.existsSync(envUploadsDir)) {
-      fs.readdir(envUploadsDir, (err, files) => {
-        if (err) {
-          console.error('Error reading environment directory:', err);
-          files = [];
-        }
-        
-        // Separate images from other files and get file info
-        const fileList = files.map(file => {
-          const filePath = path.join(envUploadsDir, file);
-          const stats = fs.statSync(filePath);
-          return {
-            name: file,
-            isImage: isImageFile(file),
-            size: stats.size,
-            modified: stats.mtime
-          };
-        });
-        
-        res.render('index', { 
-          files: fileList, 
-          environmentName: sanitizedEnv,
-          environmentPath: req.params.environment ? `/${req.params.environment}` : ''
-        });
+    try {
+      // Use the new versioned file system
+      const versionedFiles = getAllVersionedFiles(sanitizedEnv);
+      
+      res.render('index', { 
+        files: versionedFiles, 
+        environmentName: sanitizedEnv,
+        environmentPath: req.params.environment ? `/${req.params.environment}` : '',
+        sharedText: sharedText
       });
-    } else {
-      // Directory doesn't exist, so no files
+    } catch (error) {
+      console.error('Error loading versioned files:', error);
       res.render('index', { 
         files: [], 
         environmentName: sanitizedEnv,
-        environmentPath: req.params.environment ? `/${req.params.environment}` : ''
+        environmentPath: req.params.environment ? `/${req.params.environment}` : '',
+        sharedText: sharedText
       });
     }
   }
@@ -370,51 +586,77 @@ app.put('/:environment?', (req, res) => {
 app.get('/:environment/files', (req, res) => {
   const environmentName = req.params.environment || 'default';
   const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
-  const envUploadsDir = getEnvironmentUploadsDir(sanitizedEnv, false);
   
-  if (fs.existsSync(envUploadsDir)) {
-    fs.readdir(envUploadsDir, (err, files) => {
-      if (err) {
-        console.error('Error reading environment files:', err);
-        files = [];
-      }
-      if (req.query.json) {
-        res.json(files);
-      } else {
-        res.send(files.join('\n') + '\n');
-      }
-    });
-  } else {
-    // Directory doesn't exist, return empty list
+  try {
+    const versionedFiles = getAllVersionedFiles(sanitizedEnv);
+    
     if (req.query.json) {
-      res.json([]);
+      if (req.query.versions === 'true') {
+        // Return detailed version information
+        res.json(versionedFiles);
+      } else {
+        // Return simple file list (just names)
+        const fileNames = versionedFiles.map(file => file.originalFileName);
+        res.json(fileNames);
+      }
     } else {
-      res.send('\n');
+      // Text format for curl/wget compatibility
+      if (req.query.versions === 'true') {
+        // Show version information in text format
+        const output = versionedFiles.map(file => 
+          `${file.originalFileName} (${file.totalVersions} version${file.totalVersions !== 1 ? 's' : ''})`
+        ).join('\n');
+        res.send(output + '\n');
+      } else {
+        // Simple file list
+        const fileNames = versionedFiles.map(file => file.originalFileName);
+        res.send(fileNames.join('\n') + '\n');
+      }
+    }
+  } catch (error) {
+    console.error('Error listing files:', error);
+    if (req.query.json) {
+      res.status(500).json({ error: 'Failed to list files' });
+    } else {
+      res.status(500).send('Error listing files\n');
     }
   }
 });
 
 // Keep backward compatibility for root route
 app.get('/files', (req, res) => {
-  const envUploadsDir = getEnvironmentUploadsDir('default', false);
-  if (fs.existsSync(envUploadsDir)) {
-    fs.readdir(envUploadsDir, (err, files) => {
-      if (err) {
-        console.error('Error reading default files:', err);
-        files = [];
-      }
-      if (req.query.json) {
-        res.json(files);
-      } else {
-        res.send(files.join('\n') + '\n');
-      }
-    });
-  } else {
-    // Directory doesn't exist, return empty list
+  try {
+    const versionedFiles = getAllVersionedFiles('default');
+    
     if (req.query.json) {
-      res.json([]);
+      if (req.query.versions === 'true') {
+        // Return detailed version information
+        res.json(versionedFiles);
+      } else {
+        // Return simple file list (just names)
+        const fileNames = versionedFiles.map(file => file.originalFileName);
+        res.json(fileNames);
+      }
     } else {
-      res.send('\n');
+      // Text format for curl/wget compatibility
+      if (req.query.versions === 'true') {
+        // Show version information in text format
+        const output = versionedFiles.map(file => 
+          `${file.originalFileName} (${file.totalVersions} version${file.totalVersions !== 1 ? 's' : ''})`
+        ).join('\n');
+        res.send(output + '\n');
+      } else {
+        // Simple file list
+        const fileNames = versionedFiles.map(file => file.originalFileName);
+        res.send(fileNames.join('\n') + '\n');
+      }
+    }
+  } catch (error) {
+    console.error('Error listing files:', error);
+    if (req.query.json) {
+      res.status(500).json({ error: 'Failed to list files' });
+    } else {
+      res.status(500).send('Error listing files\n');
     }
   }
 });
@@ -423,44 +665,68 @@ app.get('/:environment/files/:filename', (req, res) => {
   const environmentName = req.params.environment || 'default';
   const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
   const filename = sanitizeFilename(req.params.filename);
-  const envUploadsDir = getEnvironmentUploadsDir(sanitizedEnv);
-  const filepath = path.join(envUploadsDir, filename);
-
-  fs.access(filepath, fs.constants.F_OK, (err) => {
-    if (err) {
-      return res.status(404).send('File not found' + '\n');
+  
+  // Check if a specific version is requested
+  const versionId = req.query.version;
+  let filepath;
+  
+  if (versionId) {
+    // Serve specific version
+    filepath = getFileVersionPath(sanitizedEnv, filename, versionId);
+    if (!filepath || !fs.existsSync(filepath)) {
+      return res.status(404).send('Version not found\n');
     }
+  } else {
+    // Serve latest version (current file)
+    const envUploadsDir = getEnvironmentUploadsDir(sanitizedEnv);
+    filepath = path.join(envUploadsDir, filename);
+    
+    if (!fs.existsSync(filepath)) {
+      return res.status(404).send('File not found\n');
+    }
+  }
 
-    res.download(filepath, (err) => {
-      if (err) {
-        console.error('Error downloading the file:', err);
-        if (!res.headersSent) {
-          res.status(500).send('Error downloading the file' + '\n');
-        }
+  res.download(filepath, filename, (err) => {
+    if (err) {
+      console.error('Error downloading the file:', err);
+      if (!res.headersSent) {
+        res.status(500).send('Error downloading the file\n');
       }
-    });
+    }
   });
 });
 
 // Keep backward compatibility for root route
 app.get('/files/:filename', (req, res) => {
   const filename = sanitizeFilename(req.params.filename);
-  const envUploadsDir = getEnvironmentUploadsDir('default');
-  const filepath = path.join(envUploadsDir, filename);
-
-  fs.access(filepath, fs.constants.F_OK, (err) => {
-    if (err) {
-      return res.status(404).send('File not found' + '\n');
+  
+  // Check if a specific version is requested
+  const versionId = req.query.version;
+  let filepath;
+  
+  if (versionId) {
+    // Serve specific version
+    filepath = getFileVersionPath('default', filename, versionId);
+    if (!filepath || !fs.existsSync(filepath)) {
+      return res.status(404).send('Version not found\n');
     }
+  } else {
+    // Serve latest version (current file)
+    const envUploadsDir = getEnvironmentUploadsDir('default');
+    filepath = path.join(envUploadsDir, filename);
+    
+    if (!fs.existsSync(filepath)) {
+      return res.status(404).send('File not found\n');
+    }
+  }
 
-    res.download(filepath, (err) => {
-      if (err) {
-        console.error('Error downloading the file:', err);
-        if (!res.headersSent) {
-          res.status(500).send('Error downloading the file' + '\n');
-        }
+  res.download(filepath, filename, (err) => {
+    if (err) {
+      console.error('Error downloading the file:', err);
+      if (!res.headersSent) {
+        res.status(500).send('Error downloading the file\n');
       }
-    });
+    }
   });
 });
 
@@ -480,12 +746,10 @@ app.post('/:environment/upload/initiate', (req, res) => {
   }
 
   const uploadId = uuidv4();
-  const sanitizedFileName = sanitizeFilename(fileName);
-  const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
-  const finalFileName = `${sanitizedFileName.replace(/\.[^.]+$/, '')}-${randomSuffix}${path.extname(sanitizedFileName)}`;
+  const originalFileName = sanitizeFilename(fileName); // Keep original name (sanitized)
   
   uploadSessions.set(uploadId, {
-    fileName: finalFileName,
+    fileName: originalFileName, // Use original filename
     originalFileName: fileName,
     fileSize: parseInt(fileSize),
     totalChunks: parseInt(totalChunks),
@@ -495,7 +759,7 @@ app.post('/:environment/upload/initiate', (req, res) => {
     environmentName: sanitizedEnv
   });
 
-  res.json({ uploadId, fileName: finalFileName });
+  res.json({ uploadId, fileName: originalFileName });
 });
 
 // Backward compatibility for root route
@@ -509,12 +773,10 @@ app.post('/upload/initiate', (req, res) => {
   }
 
   const uploadId = uuidv4();
-  const sanitizedFileName = sanitizeFilename(fileName);
-  const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
-  const finalFileName = `${sanitizedFileName.replace(/\.[^.]+$/, '')}-${randomSuffix}${path.extname(sanitizedFileName)}`;
+  const originalFileName = sanitizeFilename(fileName); // Keep original name (sanitized)
   
   uploadSessions.set(uploadId, {
-    fileName: finalFileName,
+    fileName: originalFileName, // Use original filename
     originalFileName: fileName,
     fileSize: parseInt(fileSize),
     totalChunks: parseInt(totalChunks),
@@ -524,7 +786,7 @@ app.post('/upload/initiate', (req, res) => {
     environmentName: 'default'
   });
 
-  res.json({ uploadId, fileName: finalFileName });
+  res.json({ uploadId, fileName: originalFileName });
 });
 
 app.post('/:environment/upload/chunk', (req, res) => {
@@ -655,9 +917,9 @@ app.post('/:environment/upload/complete', (req, res) => {
   }
 
   try {
-    // Combine all chunks into final file in the correct environment directory
-    const envUploadsDir = getEnvironmentUploadsDir(session.environmentName || sanitizedEnv, true); // Create directory when completing upload
-    const finalPath = path.join(envUploadsDir, session.fileName);
+    // Create temporary file to combine chunks
+    const tempFileName = `complete-${uploadId}-${Date.now()}.tmp`;
+    const tempPath = path.join(__dirname, 'temp', tempFileName);
     const chunks = [];
 
     // Read all chunks first
@@ -671,9 +933,22 @@ app.post('/:environment/upload/complete', (req, res) => {
       chunks.push(chunkData);
     }
 
-    // Combine all chunks and write to final file
+    // Combine all chunks and write to temporary file
     const combinedData = Buffer.concat(chunks);
-    fs.writeFileSync(finalPath, combinedData);
+    fs.writeFileSync(tempPath, combinedData);
+
+    // Use versioning system to handle the file
+    const { versionInfo, metadata } = createNewVersion(
+      session.environmentName || sanitizedEnv,
+      session.fileName,
+      combinedData.length,
+      tempPath
+    );
+
+    // Clean up temporary file
+    if (fs.existsSync(tempPath)) {
+      fs.unlinkSync(tempPath);
+    }
 
     // Clean up chunk files after successful write
     for (let i = 0; i < session.totalChunks; i++) {
@@ -689,7 +964,12 @@ app.post('/:environment/upload/complete', (req, res) => {
     // Emit to both the environment room and broadcast to all (for better compatibility)
     io.to(session.environmentName || sanitizedEnv).emit('fileUpdate');
     io.emit('fileUpdate'); // Broadcast to all for better compatibility
-    res.json({ success: true, fileName: session.fileName });
+    res.json({ 
+      success: true, 
+      fileName: session.fileName,
+      versionInfo,
+      totalVersions: metadata.versions.length
+    });
     
   } catch (error) {
     console.error('Error combining chunks:', error);
@@ -728,9 +1008,9 @@ app.post('/upload/complete', (req, res) => {
   }
 
   try {
-    // Combine all chunks into final file in the default environment
-    const envUploadsDir = getEnvironmentUploadsDir(session.environmentName || 'default', true); // Create directory when completing upload
-    const finalPath = path.join(envUploadsDir, session.fileName);
+    // Create temporary file to combine chunks
+    const tempFileName = `complete-${uploadId}-${Date.now()}.tmp`;
+    const tempPath = path.join(__dirname, 'temp', tempFileName);
     const chunks = [];
 
     // Read all chunks first
@@ -744,9 +1024,22 @@ app.post('/upload/complete', (req, res) => {
       chunks.push(chunkData);
     }
 
-    // Combine all chunks and write to final file
+    // Combine all chunks and write to temporary file
     const combinedData = Buffer.concat(chunks);
-    fs.writeFileSync(finalPath, combinedData);
+    fs.writeFileSync(tempPath, combinedData);
+
+    // Use versioning system to handle the file
+    const { versionInfo, metadata } = createNewVersion(
+      session.environmentName || 'default',
+      session.fileName,
+      combinedData.length,
+      tempPath
+    );
+
+    // Clean up temporary file
+    if (fs.existsSync(tempPath)) {
+      fs.unlinkSync(tempPath);
+    }
 
     // Clean up chunk files after successful write
     for (let i = 0; i < session.totalChunks; i++) {
@@ -762,7 +1055,12 @@ app.post('/upload/complete', (req, res) => {
     // Emit to both the environment room and broadcast to all (for better compatibility)
     io.to(session.environmentName || 'default').emit('fileUpdate');
     io.emit('fileUpdate'); // Broadcast to all for better compatibility
-    res.json({ success: true, fileName: session.fileName });
+    res.json({ 
+      success: true, 
+      fileName: session.fileName,
+      versionInfo,
+      totalVersions: metadata.versions.length
+    });
     
   } catch (error) {
     console.error('Error combining chunks:', error);
@@ -950,17 +1248,28 @@ app.post('/paste-image', (req, res) => {
     
     console.log(`Processing ${imageType} image, size: ${imageBuffer.length} bytes`);
     
-    // Generate filename for pasted image
+    // Generate original filename for pasted image
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
-    const filename = `pasted-image-${timestamp}-${randomSuffix}.${imageType}`;
+    const filename = `pasted-image-${timestamp}.${imageType}`;
     
-    // Save image to default environment directory
-    const envUploadsDir = getEnvironmentUploadsDir('default', true);
-    const filePath = path.join(envUploadsDir, filename);
+    // Create temporary file
+    const tempPath = path.join(__dirname, 'temp', `paste-${Date.now()}.${imageType}`);
+    fs.writeFileSync(tempPath, imageBuffer);
     
-    fs.writeFileSync(filePath, imageBuffer);
-    console.log(`Image saved successfully as: ${filename}`);
+    // Use versioning system to handle the file
+    const { versionInfo, metadata } = createNewVersion(
+      'default',
+      filename,
+      imageBuffer.length,
+      tempPath
+    );
+    
+    // Clean up temporary file
+    if (fs.existsSync(tempPath)) {
+      fs.unlinkSync(tempPath);
+    }
+    
+    console.log(`Image saved successfully as: ${filename} (version ${metadata.versions.length})`);
     
     // Emit file update to all clients
     io.to('default').emit('fileUpdate');
@@ -969,7 +1278,9 @@ app.post('/paste-image', (req, res) => {
     res.json({ 
       success: true, 
       filename: filename,
-      message: 'Image pasted successfully' 
+      versionInfo,
+      totalVersions: metadata.versions.length,
+      message: `Image pasted successfully (version ${metadata.versions.length})` 
     });
     
   } catch (error) {
@@ -1004,16 +1315,26 @@ app.post('/:environment/paste-image', (req, res) => {
     const imageType = matches[1];
     const imageBuffer = Buffer.from(matches[2], 'base64');
     
-    // Generate filename for pasted image
+    // Generate original filename for pasted image
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
-    const filename = `pasted-image-${timestamp}-${randomSuffix}.${imageType}`;
+    const filename = `pasted-image-${timestamp}.${imageType}`;
     
-    // Save image to environment directory
-    const envUploadsDir = getEnvironmentUploadsDir(sanitizedEnv, true);
-    const filePath = path.join(envUploadsDir, filename);
+    // Create temporary file
+    const tempPath = path.join(__dirname, 'temp', `paste-${Date.now()}.${imageType}`);
+    fs.writeFileSync(tempPath, imageBuffer);
     
-    fs.writeFileSync(filePath, imageBuffer);
+    // Use versioning system to handle the file
+    const { versionInfo, metadata } = createNewVersion(
+      sanitizedEnv,
+      filename,
+      imageBuffer.length,
+      tempPath
+    );
+    
+    // Clean up temporary file
+    if (fs.existsSync(tempPath)) {
+      fs.unlinkSync(tempPath);
+    }
     
     // Emit file update to all clients in the environment
     io.to(sanitizedEnv).emit('fileUpdate');
@@ -1022,7 +1343,9 @@ app.post('/:environment/paste-image', (req, res) => {
     res.json({ 
       success: true, 
       filename: filename,
-      message: 'Image pasted successfully' 
+      versionInfo,
+      totalVersions: metadata.versions.length,
+      message: `Image pasted successfully (version ${metadata.versions.length})` 
     });
     
   } catch (error) {
@@ -1045,26 +1368,46 @@ app.post('/:environment/upload', (req, res) => {
       return res.status(400).send('No files uploaded' + '\n');
     }
 
-    if (req.files.length === 1) {
+    try {
+      // Process each uploaded file with versioning
+      const results = [];
+      for (const file of req.files) {
+        const originalFileName = sanitizeFilename(file.originalname);
+        const { versionInfo, metadata } = createNewVersion(
+          sanitizedEnv,
+          originalFileName,
+          file.size,
+          file.path
+        );
+        
+        // Clean up temporary file
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+        
+        results.push({
+          originalFileName,
+          versionInfo,
+          totalVersions: metadata.versions.length
+        });
+      }
+
       // Emit to both the environment room and broadcast to all (for better compatibility)
       io.to(sanitizedEnv).emit('fileUpdate');
       io.emit('fileUpdate'); // Broadcast to all for better compatibility
+      
       if (req.headers['user-agent'] && (req.headers['user-agent'].includes('curl')) || userAgent.includes('wget')) {
-        return res.status(200).send('Single file uploaded successfully' + '\n');
+        const message = req.files.length === 1 
+          ? `Single file uploaded successfully: ${results[0].originalFileName} (version ${results[0].totalVersions})\n`
+          : `Multiple files uploaded successfully: ${results.map(r => `${r.originalFileName} (v${r.totalVersions})`).join(', ')}\n`;
+        return res.status(200).send(message);
       } else {
         const redirectPath = req.params.environment ? `/${req.params.environment}` : '/';
         return res.redirect(redirectPath);
       }
-    } else {
-      // Emit to both the environment room and broadcast to all (for better compatibility)
-      io.to(sanitizedEnv).emit('fileUpdate');
-      io.emit('fileUpdate'); // Broadcast to all for better compatibility
-      if (req.headers['user-agent'] && (req.headers['user-agent'].includes('curl') || userAgent.includes('wget'))) {
-        return res.status(200).send('Multiple files uploaded successfully' + '\n');
-      } else {
-        const redirectPath = req.params.environment ? `/${req.params.environment}` : '/';
-        return res.redirect(redirectPath);
-      }
+    } catch (error) {
+      console.error('Error processing uploaded files:', error);
+      return res.status(500).send('Error processing uploaded file(s): ' + error.message + '\n');
     }
   });
 });
@@ -1082,24 +1425,45 @@ app.post('/upload', (req, res) => {
       return res.status(400).send('No files uploaded' + '\n');
     }
 
-    if (req.files.length === 1) {
+    try {
+      // Process each uploaded file with versioning
+      const results = [];
+      for (const file of req.files) {
+        const originalFileName = sanitizeFilename(file.originalname);
+        const { versionInfo, metadata } = createNewVersion(
+          'default',
+          originalFileName,
+          file.size,
+          file.path
+        );
+        
+        // Clean up temporary file
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+        
+        results.push({
+          originalFileName,
+          versionInfo,
+          totalVersions: metadata.versions.length
+        });
+      }
+
       // Emit to both the default room and broadcast to all (for better compatibility)
       io.to('default').emit('fileUpdate');
       io.emit('fileUpdate'); // Broadcast to all for better compatibility
+      
       if (req.headers['user-agent'] && (req.headers['user-agent'].includes('curl')) || userAgent.includes('wget')) {
-        return res.status(200).send('Single file uploaded successfully' + '\n');
+        const message = req.files.length === 1 
+          ? `Single file uploaded successfully: ${results[0].originalFileName} (version ${results[0].totalVersions})\n`
+          : `Multiple files uploaded successfully: ${results.map(r => `${r.originalFileName} (v${r.totalVersions})`).join(', ')}\n`;
+        return res.status(200).send(message);
       } else {
         return res.redirect('/');
       }
-    } else {
-      // Emit to both the default room and broadcast to all (for better compatibility)
-      io.to('default').emit('fileUpdate');
-      io.emit('fileUpdate'); // Broadcast to all for better compatibility
-      if (req.headers['user-agent'] && (req.headers['user-agent'].includes('curl') || userAgent.includes('wget'))) {
-        return res.status(200).send('Multiple files uploaded successfully' + '\n');
-      } else {
-        return res.redirect('/');
-      }
+    } catch (error) {
+      console.error('Error processing uploaded files:', error);
+      return res.status(500).send('Error processing uploaded file(s): ' + error.message + '\n');
     }
   });
 });
@@ -1109,58 +1473,262 @@ app.delete('/:environment/files/:filename', (req, res) => {
   const environmentName = req.params.environment || 'default';
   const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
   const filename = sanitizeFilename(req.params.filename);
-  const envUploadsDir = getEnvironmentUploadsDir(sanitizedEnv, false);
-  const filePath = path.join(envUploadsDir, filename);
+  const versionId = req.query.version;
 
-  fs.unlink(filePath, (err) => {
-    if (err) {
-      if (err.code === 'ENOENT') {
-        // File doesn't exist
-        console.warn(`File not found: ${filePath}`);
-        res.status(404).send('File not found' + '\n');
+  try {
+    if (versionId) {
+      // Delete specific version
+      const remainingMetadata = deleteFileVersion(sanitizedEnv, filename, versionId);
+      io.to(sanitizedEnv).emit('fileUpdate');
+      io.emit('fileUpdate');
+      
+      if (remainingMetadata.versions.length === 0) {
+        res.status(200).send('File completely deleted (all versions removed)\n');
       } else {
-        // Other errors
-        console.error('Error deleting the file:', err);
-        res.status(500).send('Error deleting the file' + '\n');
+        res.status(200).send(`Version deleted successfully (${remainingMetadata.versions.length} version${remainingMetadata.versions.length !== 1 ? 's' : ''} remaining)\n`);
       }
     } else {
-      // Emit to both the environment room and broadcast to all (for better compatibility)
-      io.to(sanitizedEnv).emit('fileUpdate');
-      io.emit('fileUpdate'); // Broadcast to all for better compatibility
-      res.status(200).send('File deleted successfully' + '\n');
+      // Delete all versions of the file
+      const metadata = readFileMetadata(sanitizedEnv, filename);
+      if (metadata.versions.length === 0) {
+        return res.status(404).send('File not found\n');
+      }
       
-      // Clean up empty environment after file deletion
-      setTimeout(() => cleanupEmptyEnvironment(sanitizedEnv), 1000);
+      // Delete all versions
+      for (const version of [...metadata.versions]) {
+        deleteFileVersion(sanitizedEnv, filename, version.versionId);
+      }
+      
+      io.to(sanitizedEnv).emit('fileUpdate');
+      io.emit('fileUpdate');
+      res.status(200).send('File deleted successfully (all versions removed)\n');
     }
-  });
+    
+    // Clean up empty environment after file deletion
+    setTimeout(() => cleanupEmptyEnvironment(sanitizedEnv), 1000);
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    if (error.message === 'Version not found') {
+      res.status(404).send('Version not found\n');
+    } else {
+      res.status(500).send('Error deleting file: ' + error.message + '\n');
+    }
+  }
 });
 
 // Backward compatibility for root route
 app.delete('/files/:filename', (req, res) => {
   const filename = sanitizeFilename(req.params.filename);
-  const envUploadsDir = getEnvironmentUploadsDir('default', false);
-  const filePath = path.join(envUploadsDir, filename);
+  const versionId = req.query.version;
 
-  fs.unlink(filePath, (err) => {
-    if (err) {
-      if (err.code === 'ENOENT') {
-        // File doesn't exist
-        console.warn(`File not found: ${filePath}`);
-        res.status(404).send('File not found' + '\n');
+  try {
+    if (versionId) {
+      // Delete specific version
+      const remainingMetadata = deleteFileVersion('default', filename, versionId);
+      io.to('default').emit('fileUpdate');
+      io.emit('fileUpdate');
+      
+      if (remainingMetadata.versions.length === 0) {
+        res.status(200).send('File completely deleted (all versions removed)\n');
       } else {
-        // Other errors
-        console.error('Error deleting the file:', err);
-        res.status(500).send('Error deleting the file' + '\n');
+        res.status(200).send(`Version deleted successfully (${remainingMetadata.versions.length} version${remainingMetadata.versions.length !== 1 ? 's' : ''} remaining)\n`);
       }
     } else {
-      // Emit to both the default room and broadcast to all (for better compatibility)
-      io.to('default').emit('fileUpdate');
-      io.emit('fileUpdate'); // Broadcast to all for better compatibility
-      res.status(200).send('File deleted successfully' + '\n');
+      // Delete all versions of the file
+      const metadata = readFileMetadata('default', filename);
+      if (metadata.versions.length === 0) {
+        return res.status(404).send('File not found\n');
+      }
       
-      // Note: Don't cleanup default environment automatically
+      // Delete all versions
+      for (const version of [...metadata.versions]) {
+        deleteFileVersion('default', filename, version.versionId);
+      }
+      
+      io.to('default').emit('fileUpdate');
+      io.emit('fileUpdate');
+      res.status(200).send('File deleted successfully (all versions removed)\n');
     }
-  });
+    
+    // Note: Don't cleanup default environment automatically
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    if (error.message === 'Version not found') {
+      res.status(404).send('Version not found\n');
+    } else {
+      res.status(500).send('Error deleting file: ' + error.message + '\n');
+    }
+  }
+});
+
+// Version management API endpoints
+
+// Get all versions of a specific file
+app.get('/:environment/files/:filename/versions', (req, res) => {
+  const environmentName = req.params.environment || 'default';
+  const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
+  const filename = sanitizeFilename(req.params.filename);
+  
+  try {
+    const metadata = readFileMetadata(sanitizedEnv, filename);
+    
+    if (metadata.versions.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    res.json({
+      originalFileName: filename,
+      currentVersion: metadata.currentVersion,
+      totalVersions: metadata.versions.length,
+      versions: metadata.versions
+    });
+  } catch (error) {
+    console.error('Error getting file versions:', error);
+    res.status(500).json({ error: 'Failed to get file versions' });
+  }
+});
+
+// Backward compatibility for versions endpoint
+app.get('/files/:filename/versions', (req, res) => {
+  const filename = sanitizeFilename(req.params.filename);
+  
+  try {
+    const metadata = readFileMetadata('default', filename);
+    
+    if (metadata.versions.length === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    res.json({
+      originalFileName: filename,
+      currentVersion: metadata.currentVersion,
+      totalVersions: metadata.versions.length,
+      versions: metadata.versions
+    });
+  } catch (error) {
+    console.error('Error getting file versions:', error);
+    res.status(500).json({ error: 'Failed to get file versions' });
+  }
+});
+
+// Promote a specific version to be the current version
+app.put('/:environment/files/:filename/versions/:versionId/promote', (req, res) => {
+  const environmentName = req.params.environment || 'default';
+  const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
+  const filename = sanitizeFilename(req.params.filename);
+  const versionId = req.params.versionId;
+  
+  try {
+    const metadata = readFileMetadata(sanitizedEnv, filename);
+    const version = metadata.versions.find(v => v.versionId === versionId);
+    
+    if (!version) {
+      return res.status(404).json({ error: 'Version not found' });
+    }
+    
+    // If it's already the current version, nothing to do
+    if (version.versionId === metadata.currentVersion?.versionId) {
+      return res.json({ 
+        success: true, 
+        message: 'Version is already current',
+        currentVersion: metadata.currentVersion
+      });
+    }
+    
+    // Get paths
+    const currentFilePath = path.join(getEnvironmentUploadsDir(sanitizedEnv, false), filename);
+    const versionPath = getFileVersionPath(sanitizedEnv, filename, versionId);
+    
+    if (!fs.existsSync(versionPath)) {
+      return res.status(404).json({ error: 'Version file not found' });
+    }
+    
+    // Move current version to versions directory first
+    if (metadata.currentVersion && fs.existsSync(currentFilePath)) {
+      const currentVersionPath = getFileVersionPath(sanitizedEnv, filename, metadata.currentVersion.versionId);
+      fs.copyFileSync(currentFilePath, currentVersionPath);
+    }
+    
+    // Copy the target version to current location
+    fs.copyFileSync(versionPath, currentFilePath);
+    
+    // Update metadata
+    metadata.currentVersion = version;
+    writeFileMetadata(sanitizedEnv, filename, metadata);
+    
+    // Emit update
+    io.to(sanitizedEnv).emit('fileUpdate');
+    io.emit('fileUpdate');
+    
+    res.json({
+      success: true,
+      message: 'Version promoted to current',
+      currentVersion: metadata.currentVersion
+    });
+    
+  } catch (error) {
+    console.error('Error promoting version:', error);
+    res.status(500).json({ error: 'Failed to promote version: ' + error.message });
+  }
+});
+
+// Backward compatibility for promote endpoint
+app.put('/files/:filename/versions/:versionId/promote', (req, res) => {
+  const filename = sanitizeFilename(req.params.filename);
+  const versionId = req.params.versionId;
+  
+  try {
+    const metadata = readFileMetadata('default', filename);
+    const version = metadata.versions.find(v => v.versionId === versionId);
+    
+    if (!version) {
+      return res.status(404).json({ error: 'Version not found' });
+    }
+    
+    // If it's already the current version, nothing to do
+    if (version.versionId === metadata.currentVersion?.versionId) {
+      return res.json({ 
+        success: true, 
+        message: 'Version is already current',
+        currentVersion: metadata.currentVersion
+      });
+    }
+    
+    // Get paths
+    const currentFilePath = path.join(getEnvironmentUploadsDir('default', false), filename);
+    const versionPath = getFileVersionPath('default', filename, versionId);
+    
+    if (!fs.existsSync(versionPath)) {
+      return res.status(404).json({ error: 'Version file not found' });
+    }
+    
+    // Move current version to versions directory first
+    if (metadata.currentVersion && fs.existsSync(currentFilePath)) {
+      const currentVersionPath = getFileVersionPath('default', filename, metadata.currentVersion.versionId);
+      fs.copyFileSync(currentFilePath, currentVersionPath);
+    }
+    
+    // Copy the target version to current location
+    fs.copyFileSync(versionPath, currentFilePath);
+    
+    // Update metadata
+    metadata.currentVersion = version;
+    writeFileMetadata('default', filename, metadata);
+    
+    // Emit update
+    io.to('default').emit('fileUpdate');
+    io.emit('fileUpdate');
+    
+    res.json({
+      success: true,
+      message: 'Version promoted to current',
+      currentVersion: metadata.currentVersion
+    });
+    
+  } catch (error) {
+    console.error('Error promoting version:', error);
+    res.status(500).json({ error: 'Failed to promote version: ' + error.message });
+  }
 });
 
 io.on('connection', (socket) => {

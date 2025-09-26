@@ -113,10 +113,49 @@
               </div>
               <% } else { %>
                 <% files.forEach(file => { 
-                  const fileName = typeof file === 'string' ? file : file.name;
-                  const isImage = typeof file === 'object' ? file.isImage : false;
+                  const fileName = typeof file === 'string' ? file.name || file : file.originalFileName;
+                  const isImage = typeof file === 'object' ? (file.isImageFile || file.isImage) : false;
+                  const totalVersions = typeof file === 'object' ? file.totalVersions : 1;
+                  const hasMultipleVersions = totalVersions > 1;
+                  
+                  // Extract upload date and file size from current version or file stats
+                  let uploadDate = 'Unknown';
+                  let fileSize = '';
+                  if (typeof file === 'object' && file.currentVersion) {
+                    const date = new Date(file.currentVersion.uploadedAt);
+                    uploadDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    
+                    // Format file size
+                    const bytes = file.currentVersion.fileSize;
+                    if (bytes === 0) {
+                      fileSize = '0 Bytes';
+                    } else {
+                      const k = 1024;
+                      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                      const i = Math.floor(Math.log(bytes) / Math.log(k));
+                      fileSize = parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                    }
+                  } else if (typeof file === 'object' && file.lastModified) {
+                    const date = new Date(file.lastModified);
+                    uploadDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    
+                    // Format file size from size property
+                    if (file.size !== undefined) {
+                      const bytes = file.size;
+                      if (bytes === 0) {
+                        fileSize = '0 Bytes';
+                      } else {
+                        const k = 1024;
+                        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                        const i = Math.floor(Math.log(bytes) / Math.log(k));
+                        fileSize = parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                      }
+                    }
+                  }
                 %>
-                <div class="file-item <%= isImage ? 'has-image' : '' %>" data-filename="<%= fileName %>">
+                <div class="file-item <%= isImage ? 'has-image' : '' %> <%= hasMultipleVersions ? 'has-versions' : '' %>" 
+                     data-filename="<%= fileName %>" 
+                     data-versions="<%= totalVersions %>">
                   <div class="file-info">
                     <% if (isImage) { %>
                       <div class="image-thumbnail" 
@@ -135,23 +174,56 @@
                         <i class="fas fa-file" id="file-icon-<%= fileName.replace(/[^a-zA-Z0-9]/g, '') %>"></i>
                       </div>
                     <% } %>
-                    <a
-                      href="<%= typeof environmentPath !== 'undefined' ? environmentPath : '' %>/files/<%= fileName %>"
-                      download
-                      class="file-name"
-                      title="<%= fileName %>"
-                    >
-                      <%= fileName %>
-                    </a>
+                    <div class="file-details">
+                      <a
+                        href="<%= typeof environmentPath !== 'undefined' ? environmentPath : '' %>/files/<%= fileName %>"
+                        download
+                        class="file-name"
+                        title="<%= fileName %>"
+                      >
+                        <%= fileName %>
+                      </a>
+                      <div class="file-metadata">
+                        <span class="file-date">
+                          <i class="fas fa-clock"></i>
+                          <%= uploadDate %>
+                        </span>
+                        <% if (fileSize) { %>
+                        <span class="file-size"><%= fileSize %></span>
+                        <% } %>
+                      </div>
+                      <% if (hasMultipleVersions) { %>
+                      <div class="version-info">
+                        <i class="fas fa-history"></i>
+                        <span class="version-count"><%= totalVersions %> versions</span>
+                        <button class="btn-versions" onclick="showVersions('<%= fileName %>')" title="View all versions">
+                          <i class="fas fa-chevron-down"></i>
+                        </button>
+                      </div>
+                      <% } %>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    class="delete-button btn btn-danger"
-                    style="padding: 8px 12px; font-size: 12px;"
-                    title="Delete file"
-                  >
-                    <i class="fas fa-trash"></i>
-                  </button>
+                  <div class="file-actions">
+                    <% if (hasMultipleVersions) { %>
+                    <button
+                      type="button"
+                      class="versions-button btn btn-secondary"
+                      style="padding: 8px 12px; font-size: 12px; margin-right: 8px;"
+                      title="Manage versions"
+                      onclick="showVersions('<%= fileName %>')"
+                    >
+                      <i class="fas fa-history"></i>
+                    </button>
+                    <% } %>
+                    <button
+                      type="button"
+                      class="delete-button btn btn-danger"
+                      style="padding: 8px 12px; font-size: 12px;"
+                      title="Delete file"
+                    >
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
                 </div>
                 <% }) %>
               <% } %>
@@ -242,6 +314,22 @@ Start typing your shared content here...
         <button class="modal-close" onclick="closeImageModal()">×</button>
         <img id="modal-image" class="modal-image" src="" alt="">
         <div id="modal-filename" class="modal-filename"></div>
+      </div>
+    </div>
+
+    <!-- Version Management Modal -->
+    <div id="version-modal" class="image-modal">
+      <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+        <button class="modal-close" onclick="closeVersionModal()">×</button>
+        <div id="version-modal-content">
+          <h3 id="version-modal-title" style="color: var(--text-primary); margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-history"></i>
+            File Versions
+          </h3>
+          <div id="version-list" class="version-list">
+            <!-- Version items will be populated here -->
+          </div>
+        </div>
       </div>
     </div>
 
@@ -372,18 +460,30 @@ Start typing your shared content here...
           console.log('VNC connection detected - animations disabled for better performance');
         }
         
-        // Add global click handler to close modal when clicking outside
+        // Add global click handlers to close modals when clicking outside
         document.addEventListener('click', function(e) {
-          const modal = document.getElementById('image-modal');
-          if (e.target === modal) {
+          const imageModal = document.getElementById('image-modal');
+          const versionModal = document.getElementById('version-modal');
+          
+          if (e.target === imageModal) {
             closeImageModal();
+          }
+          if (e.target === versionModal) {
+            closeVersionModal();
           }
         });
         
-        // Add escape key to close modal
+        // Add escape key to close modals
         document.addEventListener('keydown', function(e) {
           if (e.key === 'Escape') {
-            closeImageModal();
+            const imageModal = document.getElementById('image-modal');
+            const versionModal = document.getElementById('version-modal');
+            
+            if (imageModal.classList.contains('show')) {
+              closeImageModal();
+            } else if (versionModal.classList.contains('show')) {
+              closeVersionModal();
+            }
           }
         });
         
@@ -648,24 +748,130 @@ Start typing your shared content here...
       });
 
       function updateFileList() {
-        fetch(window.location.pathname)
-          .then((response) => response.text())
-          .then((html) => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, "text/html");
-            const newFileList = doc.getElementById("file-list");
-            if (newFileList) {
-              fileList.innerHTML = newFileList.innerHTML;
-              attachDeleteEventListeners();
-              updateFileIcons();
-              setupImageThumbnails(); // Add this to setup hover functionality
-              updateFileCounts();
-            }
+        // Use the new API to get detailed file information including versions
+        fetch(`${environmentPath}/files?json=true&versions=true`)
+          .then((response) => response.json())
+          .then((files) => {
+            renderFileList(files);
+            attachDeleteEventListeners();
+            updateFileIcons();
+            setupImageThumbnails();
+            updateFileCounts();
           })
           .catch((error) => {
             console.error('Error updating file list:', error);
             showNotification('Failed to update file list', 'error');
+            
+            // Fallback to HTML method
+            fetch(window.location.pathname)
+              .then((response) => response.text())
+              .then((html) => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, "text/html");
+                const newFileList = doc.getElementById("file-list");
+                if (newFileList) {
+                  fileList.innerHTML = newFileList.innerHTML;
+                  attachDeleteEventListeners();
+                  updateFileIcons();
+                  setupImageThumbnails();
+                  updateFileCounts();
+                }
+              })
+              .catch(() => {
+                showNotification('Failed to update file list', 'error');
+              });
           });
+      }
+      
+      function renderFileList(files) {
+        if (files.length === 0) {
+          fileList.innerHTML = `
+            <div style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
+              <i class="fas fa-folder-open" style="font-size: 48px; margin-bottom: 15px; display: block; opacity: 0.5;"></i>
+              <p>No files uploaded yet</p>
+              <p style="font-size: 12px; margin-top: 8px;">💡 Paste images directly with Ctrl+V</p>
+            </div>
+          `;
+          return;
+        }
+        
+        const fileItems = files.map(file => {
+          const fileName = file.originalFileName;
+          const isImage = file.isImageFile;
+          const totalVersions = file.totalVersions;
+          const hasMultipleVersions = totalVersions > 1;
+          const uploadDate = file.currentVersion ? formatDate(file.currentVersion.uploadedAt) : 'Unknown';
+          const fileSize = file.currentVersion ? formatFileSize(file.currentVersion.fileSize) : '';
+          
+          return `
+            <div class="file-item ${isImage ? 'has-image' : ''} ${hasMultipleVersions ? 'has-versions' : ''}" 
+                 data-filename="${fileName}" 
+                 data-versions="${totalVersions}">
+              <div class="file-info">
+                ${isImage ? `
+                  <div class="image-thumbnail" 
+                       data-image-url="${environmentPath}/files/${fileName}"
+                       data-filename="${fileName}">
+                    <img src="${environmentPath}/files/${fileName}" 
+                         alt="${fileName}" 
+                         class="thumbnail-img"
+                         loading="lazy" />
+                    <div class="image-overlay">
+                      <i class="fas fa-search-plus"></i>
+                    </div>
+                  </div>
+                ` : `
+                  <div class="file-icon">
+                    <i class="fas fa-file" id="file-icon-${fileName.replace(/[^a-zA-Z0-9]/g, '')}"></i>
+                  </div>
+                `}
+                <div class="file-details">
+                  <a href="${environmentPath}/files/${fileName}"
+                     download
+                     class="file-name"
+                     title="${fileName}">
+                    ${fileName}
+                  </a>
+                  <div class="file-metadata">
+                    <span class="file-date">
+                      <i class="fas fa-clock"></i>
+                      ${uploadDate}
+                    </span>
+                    ${fileSize ? `<span class="file-size">${fileSize}</span>` : ''}
+                  </div>
+                  ${hasMultipleVersions ? `
+                    <div class="version-info">
+                      <i class="fas fa-history"></i>
+                      <span class="version-count">${totalVersions} versions</span>
+                      <button class="btn-versions" onclick="showVersions('${fileName}')" title="View all versions">
+                        <i class="fas fa-chevron-down"></i>
+                      </button>
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+              <div class="file-actions">
+                ${hasMultipleVersions ? `
+                  <button type="button"
+                          class="versions-button btn btn-secondary"
+                          style="padding: 8px 12px; font-size: 12px; margin-right: 8px;"
+                          title="Manage versions"
+                          onclick="showVersions('${fileName}')">
+                    <i class="fas fa-history"></i>
+                  </button>
+                ` : ''}
+                <button type="button"
+                        class="delete-button btn btn-danger"
+                        style="padding: 8px 12px; font-size: 12px;"
+                        title="Delete file">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+        fileList.innerHTML = fileItems;
       }
 
       // Prevent accidental form submission (no submit button now)
@@ -764,6 +970,199 @@ Start typing your shared content here...
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      }
+      
+      function formatDate(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        
+        if (diffMins < 1) {
+          return 'Just now';
+        } else if (diffMins < 60) {
+          return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+        } else if (diffHours < 24) {
+          return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+        } else if (diffDays < 7) {
+          return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+        } else {
+          return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+      }
+      
+      function formatDateFull(dateString) {
+        const date = new Date(dateString);
+        // Format: "September 26, 2025 at 2:09:22 PM"
+        const options = {
+          year: 'numeric',
+          month: 'long', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        };
+        return date.toLocaleDateString('en-US', options);
+      }
+      
+      function formatDateExact(dateString) {
+        const date = new Date(dateString);
+        // Format: "2025-09-26 14:09:22"
+        return date.getFullYear() + '-' + 
+               String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+               String(date.getDate()).padStart(2, '0') + ' ' +
+               String(date.getHours()).padStart(2, '0') + ':' + 
+               String(date.getMinutes()).padStart(2, '0') + ':' + 
+               String(date.getSeconds()).padStart(2, '0');
+      }
+      
+      // Version Management Functions
+      async function showVersions(fileName) {
+        try {
+          const response = await fetch(`${environmentPath}/files/${fileName}/versions`);
+          if (!response.ok) {
+            throw new Error('Failed to load versions');
+          }
+          
+          const versionData = await response.json();
+          const modal = document.getElementById('version-modal');
+          const title = document.getElementById('version-modal-title');
+          const versionList = document.getElementById('version-list');
+          
+          title.innerHTML = `
+            <i class="fas fa-history"></i>
+            Versions of "${fileName}"
+          `;
+          
+          const versionsHtml = versionData.versions.map(version => {
+            const isCurrentVersion = version.versionId === versionData.currentVersion.versionId;
+            return `
+              <div class="version-item ${isCurrentVersion ? 'current' : ''}">
+                <div class="version-details">
+                  <div class="version-id">
+                    ${version.versionId}
+                    ${isCurrentVersion ? '<span class="current-badge">Current</span>' : ''}
+                  </div>
+                  <div class="version-date">
+                    <i class="fas fa-calendar-alt"></i>
+                    ${formatDateExact(version.uploadedAt)}
+                  </div>
+                  <div class="version-date-relative">${formatDate(version.uploadedAt)}</div>
+                  <div class="version-size">
+                    <i class="fas fa-file"></i>
+                    ${formatFileSize(version.fileSize)}
+                  </div>
+                </div>
+                <div class="version-actions">
+                  <button class="version-btn" onclick="downloadVersion('${fileName}', '${version.versionId}')" title="Download this version">
+                    <i class="fas fa-download"></i>
+                    Download
+                  </button>
+                  ${!isCurrentVersion ? `
+                    <button class="version-btn primary" onclick="promoteVersion('${fileName}', '${version.versionId}')" title="Make this the current version">
+                      <i class="fas fa-arrow-up"></i>
+                      Promote
+                    </button>
+                  ` : ''}
+                  <button class="version-btn danger" onclick="deleteVersion('${fileName}', '${version.versionId}', ${isCurrentVersion})" title="Delete this version">
+                    <i class="fas fa-trash"></i>
+                    Delete
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('');
+          
+          versionList.innerHTML = versionsHtml;
+          modal.classList.add('show');
+          document.body.style.overflow = 'hidden';
+          
+        } catch (error) {
+          console.error('Error loading versions:', error);
+          showNotification('Failed to load file versions', 'error');
+        }
+      }
+      
+      function closeVersionModal() {
+        const modal = document.getElementById('version-modal');
+        modal.classList.remove('show');
+        document.body.style.overflow = '';
+      }
+      
+      function downloadVersion(fileName, versionId) {
+        const url = `${environmentPath}/files/${fileName}?version=${versionId}`;
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      
+      async function promoteVersion(fileName, versionId) {
+        const confirmed = await showConfirm(
+          `Make this version of "${fileName}" the current version?\n\nThe current version will be moved to version history.`,
+          'Promote Version',
+          'info'
+        );
+        
+        if (confirmed) {
+          try {
+            const response = await fetch(`${environmentPath}/files/${fileName}/versions/${versionId}/promote`, {
+              method: 'PUT'
+            });
+            
+            if (response.ok) {
+              showNotification('Version promoted successfully', 'success');
+              updateFileList();
+              closeVersionModal();
+              socket.emit('fileUpdate');
+            } else {
+              const error = await response.json();
+              throw new Error(error.error || 'Failed to promote version');
+            }
+          } catch (error) {
+            console.error('Error promoting version:', error);
+            showNotification('Failed to promote version: ' + error.message, 'error');
+          }
+        }
+      }
+      
+      async function deleteVersion(fileName, versionId, isCurrentVersion) {
+        const message = isCurrentVersion 
+          ? `Delete the current version of "${fileName}"?\n\nThe next most recent version will become the current version.`
+          : `Delete this version of "${fileName}"?\n\nThis action cannot be undone.`;
+          
+        const confirmed = await showConfirm(message, 'Delete Version', 'danger');
+        
+        if (confirmed) {
+          try {
+            const response = await fetch(`${environmentPath}/files/${fileName}?version=${versionId}`, {
+              method: 'DELETE'
+            });
+            
+            if (response.ok) {
+              const responseText = await response.text();
+              if (responseText.includes('completely deleted')) {
+                showNotification('File completely deleted (all versions removed)', 'success');
+                closeVersionModal();
+              } else {
+                showNotification('Version deleted successfully', 'success');
+                showVersions(fileName); // Refresh the version modal
+              }
+              updateFileList();
+              socket.emit('fileUpdate');
+            } else {
+              throw new Error('Failed to delete version');
+            }
+          } catch (error) {
+            console.error('Error deleting version:', error);
+            showNotification('Failed to delete version: ' + error.message, 'error');
+          }
+        }
       }
 
       // Function to cancel all active uploads

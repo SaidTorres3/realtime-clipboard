@@ -833,7 +833,7 @@ body {
   display        : none;
   align-items    : center;
   justify-content: center;
-  z-index        : 10000;
+  z-index        : 20000;  /* Higher than version modal (10000) */
   opacity        : 0;
   transition     : opacity 0.3s var(--ease-smooth);
 }
@@ -1150,4 +1150,229 @@ body {
 .no-animate * {
   animation : none !important;
   transition: none !important;
+}
+
+/* Version management styles */
+.file-item.has-versions {
+  border-left: 3px solid var(--accent-light-blue);
+}
+
+.file-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.file-metadata {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.file-date {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.file-date i {
+  font-size: 10px;
+}
+
+.file-size {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.version-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.version-count {
+  font-weight: 500;
+  color: var(--accent-light-blue);
+}
+
+.btn-versions {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: all 0.2s var(--ease-smooth);
+}
+
+.btn-versions:hover {
+  background: var(--card-hover-bg);
+  color: var(--accent-light-blue);
+}
+
+.file-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.versions-button {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border-secondary) !important;
+}
+
+.versions-button:hover {
+  background: var(--card-hover-bg) !important;
+  border-color: var(--accent-light-blue) !important;
+  color: var(--accent-light-blue) !important;
+}
+
+.version-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.version-item {
+  background: var(--card-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.3s var(--ease-smooth);
+}
+
+.version-item:hover {
+  background: var(--card-hover-bg);
+  border-color: var(--border-secondary);
+}
+
+.version-item.current {
+  background: linear-gradient(135deg, var(--card-bg) 0%, rgba(37, 99, 235, 0.1) 100%);
+  border-color: var(--primary-blue);
+  position: relative;
+}
+
+.version-item.current::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, var(--primary-blue), var(--accent-light-blue));
+  border-radius: 0 4px 4px 0;
+}
+
+.version-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.version-id {
+  font-family: "Fira Code", monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.version-date {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.version-date i {
+  color: var(--primary-blue);
+  font-size: 12px;
+}
+
+.version-date-relative {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.version-size {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.current-badge {
+  background: linear-gradient(135deg, var(--success-green), #10b981);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-left: 8px;
+}
+
+.version-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.version-btn {
+  padding: 6px 12px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: 1px solid var(--border-secondary);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s var(--ease-smooth);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.version-btn:hover {
+  background: var(--card-hover-bg);
+  border-color: var(--primary-blue);
+  color: var(--primary-blue);
+}
+
+.version-btn.primary {
+  background: linear-gradient(135deg, var(--primary-blue), var(--primary-dark-blue));
+  color: white;
+  border-color: var(--primary-blue);
+}
+
+.version-btn.primary:hover {
+  background: linear-gradient(135deg, var(--primary-dark-blue), var(--accent-light-blue));
+  border-color: var(--accent-light-blue);
+  color: white;
+}
+
+.version-btn.danger {
+  background: var(--danger-blue);
+  color: white;
+  border-color: var(--danger-blue);
+}
+
+.version-btn.danger:hover {
+  background: #ff1529;
+  border-color: #ff1529;
+  color: white;
 }
