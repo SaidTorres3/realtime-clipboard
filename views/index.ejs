@@ -413,6 +413,8 @@ Start typing your shared content here...
       // Application state
       let connectedUsers = 1;
       let activeUploads = new Set();
+  // Track if image preview modal is currently open to prevent accidental re-uploads
+  let imagePreviewOpen = false;
       
       // Custom Confirmation Dialog System
       function showConfirm(message, title = 'Confirm Action', type = 'warning') {
@@ -660,6 +662,7 @@ Start typing your shared content here...
         const modal = document.getElementById('image-modal');
         const modalImage = document.getElementById('modal-image');
         const modalFilename = document.getElementById('modal-filename');
+        imagePreviewOpen = true; // mark preview as open
         
         modalImage.src = imageUrl;
         modalImage.alt = filename;
@@ -673,6 +676,7 @@ Start typing your shared content here...
         const modal = document.getElementById('image-modal');
         modal.classList.remove('show');
         document.body.style.overflow = ''; // Restore scrolling
+        imagePreviewOpen = false; // mark preview as closed
       }
       
       // Setup click functionality for image thumbnails
@@ -1157,6 +1161,8 @@ Start typing your shared content here...
 
       document.addEventListener("dragenter", (event) => {
         event.preventDefault();
+        // If the image preview is open, ignore drag events to avoid accidental duplicate uploads
+        if (imagePreviewOpen) return;
         if (event.dataTransfer.items && event.dataTransfer.items[0].kind === "file") {
           dragCounter++;
           dropZone.style.display = "flex";
@@ -1190,6 +1196,11 @@ Start typing your shared content here...
         dropZone.style.display = "none";
         dragCounter = 0;
         const files = event.dataTransfer.files;
+        // Prevent uploading while the image preview modal is open (user might be dragging the previewed image)
+        if (imagePreviewOpen) {
+          console.log('Drop ignored because image preview modal is open.');
+          return; // Simply ignore to avoid creating new versions accidentally
+        }
         
         // Remove visual feedback
         const uploadArea = document.querySelector('.upload-area');
@@ -1211,6 +1222,10 @@ Start typing your shared content here...
 
       document.addEventListener("dragover", (event) => {
         event.preventDefault();
+        if (imagePreviewOpen) {
+          // Do not show drop zone while preview is open
+          dropZone.style.display = 'none';
+        }
       });
 
       textarea.addEventListener("dragover", (event) => {
@@ -1838,6 +1853,10 @@ Start typing your shared content here...
       // Clipboard paste functionality for images
       document.addEventListener('paste', async function(e) {
         const clipboardItems = e.clipboardData.items;
+        if (imagePreviewOpen) {
+          console.log('Image paste ignored because image preview modal is open.');
+          return; // Avoid accidental duplication when user is inspecting an image
+        }
         
         for (let i = 0; i < clipboardItems.length; i++) {
           const item = clipboardItems[i];
@@ -1968,7 +1987,9 @@ Start typing your shared content here...
         // Ctrl/Cmd + U for upload
         if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
           e.preventDefault();
-          fileInput.click();
+          if (!imagePreviewOpen) { // prevent triggering file dialog when preview open
+            fileInput.click();
+          }
         }
         
         // Ctrl/Cmd + K for clear
