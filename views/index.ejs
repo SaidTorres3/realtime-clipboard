@@ -3,261 +3,1044 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RealTime-Clipboard</title>
+    <title>RealTime Clipboard 2.0 - Professional File Sharing</title>
     <script src="/socket.io/socket.io.js"></script>
     <link href="tailwind.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet" />
     <style>
-      body {
-        font-family: "Inter", sans-serif;
+      :root {
+        /* Custom V2.0 Professional Dark Blue Theme */
+        --primary-blue: #2563eb;
+        --primary-dark-blue: #1d4ed8;
+        --accent-navy: #1e3a8a;
+        --accent-light-blue: #3b82f6;
+        --accent-cyan: #0891b2;
+        
+        /* Sophisticated Background Gradients */
+        --dark-bg: #0a0a0a;
+        --darker-bg: #050505;
+        --sidebar-bg: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        --card-bg: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        --card-hover-bg: linear-gradient(135deg, #334155 0%, #475569 100%);
+        
+        /* Enhanced Border System */
+        --border-primary: #374151;
+        --border-secondary: #4b5563;
+        --border-accent: var(--primary-blue);
+        --border-subtle: #1f2937;
+        
+        /* Sophisticated Text Colors */
+        --text-primary: #f8fafc;
+        --text-secondary: #e2e8f0;
+        --text-muted: #94a3b8;
+        --text-accent: var(--accent-light-blue);
+        
+        /* Status Colors */
+        --success-green: #10b981;
+        --danger-blue: #dc2626;
+        --warning-amber: #f59e0b;
+        --info-blue: var(--primary-blue);
+        
+        /* Professional Shadow System */
+        --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+        --shadow-soft: 0 4px 6px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.12);
+        --shadow-medium: 0 10px 15px rgba(0, 0, 0, 0.2), 0 4px 6px rgba(0, 0, 0, 0.15);
+        --shadow-strong: 0 20px 25px rgba(0, 0, 0, 0.25), 0 10px 10px rgba(0, 0, 0, 0.1);
+        --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.3);
+        
+        /* Animation Curves */
+        --ease-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
       }
 
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: linear-gradient(135deg, var(--dark-bg) 0%, #111827 50%, var(--darker-bg) 100%);
+        background-attachment: fixed;
+        color: var(--text-primary);
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+        line-height: 1.6;
+        font-size: 14px;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+
+
+      /* Sidebar Styling - Professional Design */
+      .sidebar {
+        width: 400px;
+        min-width: 350px;
+        max-width: 520px;
+        background: var(--sidebar-bg);
+        border-right: 1px solid var(--border-primary);
+        position: relative;
+        height: 100vh;
+        overflow-y: auto;
+        box-shadow: var(--shadow-strong);
+        display: flex;
+        flex-direction: column;
+        padding: 32px 28px;
+      }
+      
+      .sidebar::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 3px;
+        height: 100%;
+        background: linear-gradient(180deg, var(--primary-blue) 0%, var(--accent-navy) 100%);
+        box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+      }
+
+      /* Enhanced Scrollbar Design */
+      .sidebar::-webkit-scrollbar {
+        width: 12px;
+      }
+
+      .sidebar::-webkit-scrollbar-track {
+        background: var(--darker-bg);
+        border-radius: 6px;
+        margin: 4px;
+      }
+
+      .sidebar::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, var(--primary-blue), var(--accent-navy));
+        border-radius: 6px;
+        border: 2px solid var(--darker-bg);
+        box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s var(--ease-smooth);
+      }
+
+      .sidebar::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, var(--primary-dark-blue), var(--primary-blue));
+        box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+      }
+
+      .resizer {
+        width: 8px;
+        background: linear-gradient(90deg, transparent 0%, var(--primary-blue) 50%, transparent 100%);
+        cursor: ew-resize;
+        position: absolute;
+        top: 0;
+        right: -4px;
+        bottom: 0;
+        z-index: 10;
+        transition: all 0.3s var(--ease-smooth);
+        opacity: 0.7;
+      }
+
+      .resizer:hover {
+        background: linear-gradient(90deg, transparent 0%, var(--primary-dark-blue) 50%, transparent 100%);
+        opacity: 1;
+        box-shadow: 0 0 15px rgba(37, 99, 235, 0.4);
+      }
+
+      /* Content Area - Professional Layout */
+      .content-area {
+        flex: 1;
+        background: linear-gradient(135deg, var(--dark-bg) 0%, #0f172a 100%);
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        position: relative;
+      }
+
+
+
+      .brand-title {
+        background: linear-gradient(135deg, var(--primary-blue), var(--accent-light-blue));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-size: 32px;
+        font-weight: 800;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        letter-spacing: -0.5px;
+      }
+
+      .brand-subtitle {
+        color: var(--text-secondary);
+        font-size: 14px;
+        margin: 4px 0 0 0;
+        font-weight: 500;
+      }
+
+      /* Main Editor Area - Premium Layout */
+      .main-editor {
+        flex: 1;
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .editor-wrapper {
+        flex: 1;
+        background: var(--card-bg);
+        border: 1px solid var(--border-primary);
+        border-radius: 20px;
+        box-shadow: var(--shadow-strong);
+        overflow: hidden;
+        min-height: 500px;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+      }
+      
+      .editor-wrapper::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--primary-blue) 0%, var(--accent-light-blue) 50%, var(--accent-cyan) 100%);
+      }
+
+      .editor-header {
+        background: linear-gradient(135deg, var(--darker-bg) 0%, #1e293b 100%);
+        padding: 24px 32px;
+        border-bottom: 1px solid var(--border-primary);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .editor-title {
+        background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 700;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        letter-spacing: -0.2px;
+      }
+
+      .connection-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: linear-gradient(135deg, var(--success-green), #10b981);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 8px 16px;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+      }
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        background: radial-gradient(circle, var(--success-green), #10b981);
+        border-radius: 50%;
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.6), 0 0 20px rgba(16, 185, 129, 0.3);
+        animation: pulse 2s infinite;
+      }
+      
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+      }
+
+      /* Textarea Styling - Premium Editor */
+      #textarea {
+        flex: 1;
+        background: linear-gradient(135deg, var(--darker-bg) 0%, #0f172a 100%);
+        border: none;
+        color: var(--text-primary);
+        font-family: "Fira Code", "SF Mono", Monaco, "Cascadia Code", monospace;
+        font-size: 16px;
+        line-height: 1.8;
+        padding: 32px;
+        resize: none;
+        outline: none;
+        transition: all 0.3s var(--ease-smooth);
+        border-radius: 0 0 16px 0;
+        position: relative;
+      }
+
+      #textarea:focus {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        box-shadow: inset 0 0 30px rgba(37, 99, 235, 0.1);
+      }
+
+      #textarea::placeholder {
+        color: var(--text-muted);
+        font-style: italic;
+      }
+
+      /* Sidebar Content Styling */
+      .sidebar-content {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .sidebar-section {
+        margin-bottom: 36px;
+        padding: 0 4px;
+      }
+
+      .section-title {
+        background: linear-gradient(135deg, var(--primary-blue), var(--accent-light-blue));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        letter-spacing: -0.3px;
+        position: relative;
+      }
+      
+      .section-title::after {
+        content: '';
+        position: absolute;
+        bottom: -8px;
+        left: 0;
+        width: 40px;
+        height: 2px;
+        background: linear-gradient(90deg, var(--primary-blue), var(--accent-light-blue));
+        border-radius: 1px;
+      }
+
+      /* Upload Section - Premium Design */
+      .upload-area {
+        background: var(--card-bg);
+        border: 2px dashed var(--border-secondary);
+        border-radius: 16px;
+        padding: 32px;
+        text-align: center;
+        transition: all 0.4s var(--ease-smooth);
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+      }
+      
+      .upload-area::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.1), transparent);
+        transition: left 0.6s var(--ease-smooth);
+      }
+
+      .upload-area:hover,
+      .upload-area.dragover {
+        background: var(--card-hover-bg);
+        border-color: var(--primary-blue);
+        box-shadow: var(--shadow-medium), var(--shadow-glow);
+        transform: translateY(-2px);
+      }
+      
+      .upload-area:hover::before {
+        left: 100%;
+      }
+
+      .upload-icon {
+        font-size: 56px;
+        background: linear-gradient(135deg, var(--primary-blue), var(--accent-light-blue));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 20px;
+        transition: all 0.3s var(--ease-smooth);
+      }
+
+      .upload-text {
+        color: var(--text-primary);
+        font-size: 16px;
+        font-weight: 500;
+        margin-bottom: 8px;
+      }
+
+      .upload-subtext {
+        color: var(--text-muted);
+        font-size: 14px;
+        margin-bottom: 20px;
+      }
+
+      /* Buttons - Premium Design */
+      .btn {
+        padding: 14px 28px;
+        border-radius: 12px;
+        border: none;
+        font-weight: 600;
+        font-size: 14px;
+        letter-spacing: 0.3px;
+        cursor: pointer;
+        transition: all 0.3s var(--ease-smooth);
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        position: relative;
+        overflow: hidden;
+      }
+      
+      .btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        transition: left 0.5s var(--ease-smooth);
+      }
+      
+      .btn:hover::before {
+        left: 100%;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, var(--primary-blue), var(--primary-dark-blue));
+        color: white;
+        box-shadow: var(--shadow-soft);
+      }
+
+      .btn-primary:hover {
+        background: linear-gradient(135deg, var(--primary-dark-blue), var(--accent-light-blue));
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-medium), 0 0 20px rgba(37, 99, 235, 0.4);
+      }
+
+      .btn-secondary {
+        background: var(--card-bg);
+        color: var(--text-primary);
+        border: 1px solid var(--border-secondary);
+        box-shadow: var(--shadow-subtle);
+      }
+
+      .btn-secondary:hover {
+        background: var(--card-hover-bg);
+        border-color: var(--primary-blue);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-soft);
+      }
+
+      .btn-danger {
+        background-color: var(--danger-blue);
+        color: white;
+      }
+
+      .btn-danger:hover {
+        background-color: #ff1529;
+        transform: translateY(-1px);
+      }
+
+      /* File List - Premium Design */
+      .file-list {
+        overflow-y: auto;
+        flex-grow: 1;
+        max-height: calc(100vh - 400px);
+        padding: 4px;
+      }
+
+      .file-item {
+        background: var(--card-bg);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 18px 20px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.3s var(--ease-smooth);
+        position: relative;
+        overflow: hidden;
+      }
+      
+      .file-item::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, var(--primary-blue), var(--accent-light-blue));
+        transform: scaleY(0);
+        transition: transform 0.3s var(--ease-smooth);
+      }
+
+      .file-item:hover {
+        background: var(--card-hover-bg);
+        border-color: var(--border-secondary);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-medium);
+      }
+      
+      .file-item:hover::before {
+        transform: scaleY(1);
+      }
+
+      .file-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+        min-width: 0;
+      }
+
+      .file-icon {
+        font-size: 24px;
+        color: var(--primary-blue);
+        width: 30px;
+        text-align: center;
+      }
+
+      .file-name {
+        color: var(--text-primary);
+        font-weight: 500;
+        text-decoration: none;
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .file-name:hover {
+        color: var(--primary-blue);
+      }
+
+      /* Progress Container - VNC Optimized */
+      #progress-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background-color: var(--sidebar-bg);
+        border-top: 3px solid var(--primary-blue);
+        padding: 20px;
+        box-shadow: var(--shadow-strong);
+        display: none;
+      }
+
+      .progress-section {
+        margin-bottom: 15px;
+      }
+
+      .progress-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .progress-label {
+        color: var(--text-primary);
+        font-weight: 500;
+        font-size: 14px;
+      }
+
+      .progress-percentage {
+        color: var(--primary-blue);
+        font-weight: 600;
+        font-family: "Fira Code", monospace;
+      }
+
+      .progress-track {
+        width: 100%;
+        height: 8px;
+        background-color: var(--darker-bg);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      .progress-bar {
+        height: 100%;
+        background-color: var(--primary-blue);
+        transition: width 0.3s ease;
+        border-radius: 4px;
+      }
+
+      .progress-bar.success {
+        background-color: var(--success-green);
+      }
+
+      /* Drop Zone - Solid Overlay */
       #drop-zone {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.5);
+        background-color: rgba(26, 22, 37, 0.95);
         display: none;
         align-items: center;
         justify-content: center;
-        color: #fff;
+        z-index: 9999;
+      }
+
+      .drop-zone-content {
+        text-align: center;
+        color: var(--text-primary);
+        background-color: var(--card-bg);
+        padding: 60px;
+        border-radius: 16px;
+        border: 3px dashed var(--primary-blue);
+        box-shadow: var(--shadow-strong);
+      }
+
+      .drop-zone-icon {
+        font-size: 80px;
+        color: var(--primary-blue);
+        margin-bottom: 20px;
+      }
+
+      .drop-zone-title {
         font-size: 24px;
-        z-index: 1000;
+        font-weight: 600;
+        margin-bottom: 10px;
       }
 
-      .sidebar {
-        width: 23%;
-        min-width: 250px;
-        background-color: #061228;
-        padding: 20px;
+      .drop-zone-text {
+        color: var(--text-secondary);
+        font-size: 16px;
+      }
+
+      /* Environment Badge */
+      .environment-badge {
+        background-color: var(--card-bg);
+        border: 2px solid var(--primary-dark-blue);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 20px;
+      }
+
+      .environment-label {
+        color: var(--primary-dark-blue);
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+      }
+
+      .environment-name {
+        color: var(--text-primary);
+        font-family: "Fira Code", monospace;
+        font-weight: 500;
+      }
+
+      /* Stats Section */
+      .stats-section {
+        background-color: var(--card-bg);
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: auto;
+        border: 1px solid var(--border-color);
+      }
+
+      .stat-item {
         display: flex;
-        flex-direction: column;
-        max-height: 100%;
-        box-sizing: border-box;
-        position: relative;
-        overflow: auto;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border-color);
       }
 
-      .resizer {
-        width: 5px;
-        background-color: #4a5568;
-        cursor: ew-resize;
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 1;
+      .stat-item:last-child {
+        border-bottom: none;
       }
 
-      .file-list {
-        overflow-y: auto;
-        flex-grow: 1;
-        max-height: calc(100vh - 220px); /* Adjust based on the actual height of other elements */
+      .stat-label {
+        color: var(--text-secondary);
+        font-size: 14px;
       }
 
-      .content {
-        flex-grow: 1;
-        padding: 20px;
+      .stat-value {
+        color: var(--primary-blue);
+        font-weight: 600;
+        font-family: "Fira Code", monospace;
       }
 
-      #progress-container {
-        display: none;
-        backdrop-filter: blur(4px);
-        border-top: 1px solid #4a5568;
+      /* Clear Button */
+      .clear-btn {
+        background: none;
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
       }
 
-      .progress-bar-animation {
-        animation: pulse 2s infinite;
+      .clear-btn:hover {
+        border-color: var(--primary-blue);
+        color: var(--primary-blue);
       }
 
-      @keyframes pulse {
-        0% {
-          box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);
-        }
-        70% {
-          box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
-        }
-        100% {
-          box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
-        }
-      }
-
-      #chunk-progress-bar {
-        background: linear-gradient(90deg, #60a5fa, #3b82f6, #2563eb);
-        background-size: 200% 100%;
-        animation: shimmer 2s linear infinite;
-      }
-
-      #overall-progress-bar {
-        background: linear-gradient(90deg, #10b981, #059669, #047857);
-      }
-
-      @keyframes shimmer {
-        0% {
-          background-position: -200% 0;
-        }
-        100% {
-          background-position: 200% 0;
-        }
-      }
-
-      /* Media query for mobile devices */
+      /* Mobile Responsive Design - VNC Optimized */
       @media (max-width: 768px) {
-        body {
-          flex-direction: column-reverse;
-        }
-
-        textarea {
-          resize: vertical;
-          min-height: 300px;
+        .main-container {
+          flex-direction: column;
         }
 
         .sidebar {
           width: 100%;
-          min-width: 100%;
-          padding: 10px;
+          max-width: 100%;
+          height: auto;
+          max-height: 40vh;
+          order: 2;
+          border-right: none;
+          border-top: 3px solid var(--primary-blue);
+        }
+
+        .content-area {
+          order: 1;
+          min-height: 60vh;
         }
 
         .resizer {
           display: none;
         }
 
-        .content {
-          padding: 10px;
-          width: 100%;
+        .main-editor {
+          padding: 15px;
+        }
+
+        .sidebar-content {
+          padding: 20px;
         }
 
         .file-list {
-          max-height: 300px; /* Adjust based on the actual height of other elements */
+          max-height: 25vh;
         }
+
+        .editor-wrapper {
+          min-height: 300px;
+        }
+
+        #textarea {
+          padding: 20px;
+          font-size: 14px;
+        }
+
+        .drop-zone-content {
+          padding: 40px 30px;
+          margin: 20px;
+        }
+
+        .drop-zone-icon {
+          font-size: 60px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .sidebar-content {
+          padding: 15px;
+        }
+
+        .main-editor {
+          padding: 10px;
+        }
+
+        .upload-area {
+          padding: 20px;
+        }
+
+        .upload-icon {
+          font-size: 36px;
+        }
+
+        #progress-container {
+          padding: 15px;
+        }
+      }
+
+      /* Utility Classes */
+      .hidden {
+        display: none !important;
+      }
+
+      .flex {
+        display: flex;
+      }
+
+      .flex-1 {
+        flex: 1;
+      }
+
+      .items-center {
+        align-items: center;
+      }
+
+      .justify-between {
+        justify-content: space-between;
+      }
+
+      .gap-2 {
+        gap: 8px;
+      }
+
+      .mb-2 {
+        margin-bottom: 8px;
+      }
+
+      .mb-4 {
+        margin-bottom: 16px;
+      }
+
+      .w-full {
+        width: 100%;
+      }
+
+      /* No-animation class for VNC performance */
+      .no-animate * {
+        animation: none !important;
+        transition: none !important;
       }
     </style>
   </head>
 
-  <body class="bg-black text-gray-100 flex min-h-full">
-    <!-- Sidebar -->
-    <div class="sidebar">
-      <div>
-        <div class="mb-6">
+  <body>
+    <!-- Main Container -->
+    <div class="flex main-container" style="min-height: 100vh;">
+      <!-- Sidebar -->
+      <div class="sidebar">
+        <div class="sidebar-content">
+          <!-- App Header -->
+          <div class="sidebar-section">
+            <h1 class="brand-title">
+              <i class="fas fa-clipboard-list"></i>
+              RealTime Clipboard
+            </h1>
+            <p class="brand-subtitle">Professional File Sharing Platform</p>
+          </div>
+
+          <!-- Environment Badge -->
           <% if (typeof environmentName !== 'undefined' && environmentName !== 'default') { %>
-          <div class="mb-4 p-3 bg-blue-900 rounded-lg border border-blue-500">
-            <div class="flex items-center justify-between">
-              <h2 class="text-sm font-medium text-blue-200">Environment</h2>
-              <span class="text-blue-300 font-mono text-sm"><%= environmentName %></span>
-            </div>
+          <div class="environment-badge">
+            <div class="environment-label">Environment</div>
+            <div class="environment-name"><%= environmentName %></div>
           </div>
           <% } %>
-          <h3 class="text-xl font-semibold mb-2">Upload Files</h3>
-          <form
-            id="upload-form"
-            class="space-y-4"
-            action="<%= typeof environmentPath !== 'undefined' ? environmentPath : '' %>/upload"
-            method="post"
-            enctype="multipart/form-data"
-          >
-            <input
-              id="file-input"
-              type="file"
-              name="files"
-              multiple
-              required
-              class="block w-full text-sm text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-500 file:text-gray-100 hover:file:bg-blue-400"
-            />
-            <button
-              type="submit"
-              class="w-full py-2 bg-blue-500 text-gray-100 rounded-lg hover:bg-blue-400 transition duration-300"
-            >
-              Upload
-            </button>
-          </form>
-        </div>
-        <div>
-          <h3 class="text-xl font-semibold mb-2">Files</h3>
-          <ul class="file-list w-full space-y-2" id="file-list">
-            <% files.forEach(file => { %>
-            <li
-              data-filename="<%= file %>"
-              class="flex justify-between items-center bg-gray-700 p-4 rounded-lg"
-            >
-              <a
-                href="<%= typeof environmentPath !== 'undefined' ? environmentPath : '' %>/files/<%= file %>"
-                download
-                class="text-gray-200 hover:text-blue-400 transition duration-300"
-              >
-                <%= file %>
-              </a>
-              <button
-                type="button"
-                class="delete-button bg-red-500 text-gray-100 px-3 py-1 rounded-lg hover:bg-red-400 transition duration-300"
-              >
-                Delete
-              </button>
-            </li>
-            <% }) %>
-          </ul>
-        </div>
-      </div>
-      <div class="resizer"></div>
-    </div>
 
-    <!-- Main Content -->
-    <div
-      style="display: flex"
-      class="content flex flex-col items-center justify-center"
-    >
-      <textarea
-        id="textarea"
-        style="flex-grow: 1; background-color: #121f33"
-        class="w-full h-full h-64 p-4 mb-4 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-        placeholder="Type something..."
-      ></textarea>
-    </div>
+          <!-- Upload Section -->
+          <div class="sidebar-section">
+            <h3 class="section-title">
+              <i class="fas fa-cloud-upload-alt"></i>
+              File Upload
+            </h3>
+            
+            <form id="upload-form" action="<%= typeof environmentPath !== 'undefined' ? environmentPath : '' %>/upload" method="post" enctype="multipart/form-data">
+              <div class="upload-area" onclick="document.getElementById('file-input').click()">
+                <div class="upload-icon">
+                  <i class="fas fa-plus-circle"></i>
+                </div>
+                <div class="upload-text">Drop files here or click to browse</div>
+                <div class="upload-subtext">Supports multiple files and large uploads</div>
+                <input
+                  id="file-input"
+                  type="file"
+                  name="files"
+                  multiple
+                  style="display: none;"
+                />
+              </div>
+              
+              <div style="margin-top: 15px;">
+                <button type="submit" class="btn btn-primary w-full">
+                  <i class="fas fa-upload"></i>
+                  Upload Files
+                </button>
+              </div>
+            </form>
+          </div>
 
-    <div
-      id="progress-container"
-      class="fixed bottom-0 left-0 w-full bg-gray-800 p-3 shadow-lg"
-    >
-      <div id="progress-text" class="text-white text-sm mb-2 font-medium"></div>
-      
-      <!-- Overall Progress -->
-      <div class="mb-3">
-        <div class="flex justify-between items-center mb-1">
-          <span class="text-xs text-gray-300">Overall Progress</span>
-          <span id="overall-percentage" class="text-xs text-gray-300">0%</span>
-        </div>
-        <div class="w-full bg-gray-600 rounded-full h-2">
-          <div id="overall-progress-bar" class="h-2 bg-green-500 rounded-full transition-all duration-300" style="width: 0%"></div>
-        </div>
-      </div>
-      
-      <!-- Current Chunk Progress -->
-      <div id="chunk-progress-section" style="display: none;">
-        <div class="flex justify-between items-center mb-1">
-          <span class="text-xs text-gray-300" id="chunk-label">Current Chunk</span>
-          <div class="flex items-center gap-2">
-            <span id="chunk-percentage" class="text-xs text-gray-300">0%</span>
-            <button 
-              id="cancel-upload-btn" 
-              class="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-0.5 rounded transition-colors duration-200"
-              onclick="cancelAllUploads()"
-              title="Cancel upload"
-            >
-              Cancel
-            </button>
+          <!-- Files Section -->
+          <div class="sidebar-section flex-1">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="section-title">
+                <i class="fas fa-folder-open"></i>
+                Shared Files
+              </h3>
+              <span id="file-count" class="stat-value"><%= files.length %></span>
+            </div>
+            
+            <div class="file-list" id="file-list">
+              <% if (files.length === 0) { %>
+              <div style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
+                <i class="fas fa-folder-open" style="font-size: 48px; margin-bottom: 15px; display: block; opacity: 0.5;"></i>
+                <p>No files uploaded yet</p>
+              </div>
+              <% } else { %>
+                <% files.forEach(file => { %>
+                <div class="file-item" data-filename="<%= file %>">
+                  <div class="file-info">
+                    <div class="file-icon">
+                      <i class="fas fa-file" id="file-icon-<%= file.replace(/[^a-zA-Z0-9]/g, '') %>"></i>
+                    </div>
+                    <a
+                      href="<%= typeof environmentPath !== 'undefined' ? environmentPath : '' %>/files/<%= file %>"
+                      download
+                      class="file-name"
+                      title="<%= file %>"
+                    >
+                      <%= file %>
+                    </a>
+                  </div>
+                  <button
+                    type="button"
+                    class="delete-button btn btn-danger"
+                    style="padding: 8px 12px; font-size: 12px;"
+                    title="Delete file"
+                  >
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+                <% }) %>
+              <% } %>
+            </div>
+          </div>
+
+          <!-- Stats Section -->
+          <div class="stats-section">
+            <div class="stat-item">
+              <span class="stat-label">Files</span>
+              <span class="stat-value" id="files-count"><%= files.length %></span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Connected Users</span>
+              <span class="stat-value" id="users-count">1</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Status</span>
+              <span class="stat-value">
+                <i class="fas fa-circle" style="color: var(--success-green); font-size: 8px;"></i>
+                Online
+              </span>
+            </div>
           </div>
         </div>
-        <div class="w-full bg-gray-600 rounded-full h-1.5">
-          <div id="chunk-progress-bar" class="h-1.5 bg-blue-400 rounded-full transition-all duration-150" style="width: 0%"></div>
+        <div class="resizer"></div>
+      </div>
+
+      <!-- Main Content Area -->
+      <div class="content-area">
+        <!-- Main Editor -->
+        <div class="main-editor">
+          <div class="editor-wrapper">
+            <div class="editor-header">
+              <div class="editor-title">
+                <i class="fas fa-keyboard"></i>
+                Live Editor
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="connection-status">
+                  <div class="status-dot"></div>
+                  <span>Connected</span>
+                </div>
+                <button class="clear-btn" onclick="clearClipboard()" title="Clear all content">
+                  <i class="fas fa-eraser"></i>
+                  Clear
+                </button>
+              </div>
+            </div>
+            <textarea
+              id="textarea"
+              placeholder="🚀 Welcome to RealTime Clipboard 2.0!
+
+Start typing your shared content here...
+
+✨ Features:
+• Real-time synchronization across all connected devices
+• Professional file sharing with drag & drop support
+• Large file upload with chunked processing
+• Clean, performance-optimized design
+
+💡 Tips:
+• Use Ctrl/Cmd + A to select all text
+• Drag files directly into the sidebar to upload
+• Content is automatically saved and synced"
+            ></textarea>
+          </div>
         </div>
       </div>
     </div>
 
-    <div id="drop-zone" class="flex items-center justify-center">
-      Drop files here to upload
+    <!-- Progress Container -->
+    <div id="progress-container">
+      <div style="max-width: 800px; margin: 0 auto;">
+        <div id="progress-text" class="progress-label mb-2">
+          <i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>
+          Processing...
+        </div>
+        
+        <!-- Overall Progress -->
+        <div class="progress-section">
+          <div class="progress-header">
+            <span class="progress-label">Overall Progress</span>
+            <span id="overall-percentage" class="progress-percentage">0%</span>
+          </div>
+          <div class="progress-track">
+            <div id="overall-progress-bar" class="progress-bar" style="width: 0%"></div>
+          </div>
+        </div>
+        
+        <!-- Current Chunk Progress -->
+        <div id="chunk-progress-section" style="display: none;" class="progress-section">
+          <div class="progress-header">
+            <span class="progress-label" id="chunk-label">Current Chunk</span>
+            <div class="flex items-center gap-2">
+              <span id="chunk-percentage" class="progress-percentage">0%</span>
+              <button 
+                id="cancel-upload-btn" 
+                class="btn btn-danger"
+                style="padding: 6px 10px; font-size: 12px;"
+                onclick="cancelAllUploads()"
+                title="Cancel upload"
+              >
+                <i class="fas fa-times"></i>
+                Cancel
+              </button>
+            </div>
+          </div>
+          <div class="progress-track">
+            <div id="chunk-progress-bar" class="progress-bar" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Drop Zone -->
+    <div id="drop-zone">
+      <div class="drop-zone-content">
+        <div class="drop-zone-icon">
+          <i class="fas fa-cloud-upload-alt"></i>
+        </div>
+        <div class="drop-zone-title">Drop Files Here</div>
+        <div class="drop-zone-text">Release to upload your files instantly</div>
+      </div>
     </div>
 
     <script>
+      // RealTime Clipboard 2.0 - Professional JavaScript
       const socket = io();
       const textarea = document.getElementById("textarea");
       const fileList = document.getElementById("file-list");
@@ -274,17 +1057,149 @@
       const chunkProgressBar = document.getElementById("chunk-progress-bar");
       const chunkPercentage = document.getElementById("chunk-percentage");
       const chunkLabel = document.getElementById("chunk-label");
+      const fileCount = document.getElementById("file-count");
+      const filesCount = document.getElementById("files-count");
+      const usersCount = document.getElementById("users-count");
 
       // Get current environment from URL
       const currentPath = window.location.pathname;
       const environmentName = currentPath === '/' ? 'default' : currentPath.slice(1);
       const environmentPath = currentPath === '/' ? '' : currentPath;
-
-      // Join the appropriate environment room
-      socket.emit('joinEnvironment', environmentName);
-
-      // Track active uploads for cleanup
+      
+      // Application state
+      let connectedUsers = 1;
       let activeUploads = new Set();
+      
+      // Initialize application
+      function initializeApp() {
+        // Join the appropriate environment room
+        socket.emit('joinEnvironment', environmentName);
+        
+        // Setup file icons
+        updateFileIcons();
+        
+        // VNC performance check
+        if (isVNCConnection()) {
+          document.body.classList.add('no-animate');
+          console.log('VNC connection detected - animations disabled for better performance');
+        }
+        
+        console.log('%c🚀 RealTime Clipboard 2.0 Professional Edition Loaded!', 
+          'color: #ff6b35; font-size: 16px; font-weight: bold;');
+      }
+
+      // Detect VNC connection (heuristic)
+      function isVNCConnection() {
+        // Check for common VNC indicators
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isLowBandwidth = navigator.connection && navigator.connection.downlink < 1;
+        const isRemoteDesktop = userAgent.includes('rdp') || userAgent.includes('vnc') || 
+                               userAgent.includes('remote') || window.screen.colorDepth < 24;
+        
+        return isLowBandwidth || isRemoteDesktop;
+      }
+
+      // Enhanced file icon detection
+      function getFileIcon(filename) {
+        const ext = filename.split('.').pop().toLowerCase();
+        const iconMap = {
+          // Documents
+          'pdf': 'fas fa-file-pdf',
+          'doc': 'fas fa-file-word', 'docx': 'fas fa-file-word',
+          'xls': 'fas fa-file-excel', 'xlsx': 'fas fa-file-excel',
+          'ppt': 'fas fa-file-powerpoint', 'pptx': 'fas fa-file-powerpoint',
+          'txt': 'fas fa-file-alt', 'md': 'fas fa-file-alt',
+          
+          // Images
+          'jpg': 'fas fa-file-image', 'jpeg': 'fas fa-file-image',
+          'png': 'fas fa-file-image', 'gif': 'fas fa-file-image',
+          'svg': 'fas fa-file-image', 'webp': 'fas fa-file-image',
+          
+          // Code
+          'js': 'fas fa-file-code', 'ts': 'fas fa-file-code',
+          'html': 'fas fa-file-code', 'css': 'fas fa-file-code',
+          'json': 'fas fa-file-code', 'xml': 'fas fa-file-code',
+          'py': 'fas fa-file-code', 'java': 'fas fa-file-code',
+          'cpp': 'fas fa-file-code', 'c': 'fas fa-file-code',
+          
+          // Archives
+          'zip': 'fas fa-file-archive', 'rar': 'fas fa-file-archive',
+          '7z': 'fas fa-file-archive', 'tar': 'fas fa-file-archive',
+          'gz': 'fas fa-file-archive',
+          
+          // Media
+          'mp3': 'fas fa-file-audio', 'wav': 'fas fa-file-audio',
+          'mp4': 'fas fa-file-video', 'avi': 'fas fa-file-video',
+          'mov': 'fas fa-file-video', 'wmv': 'fas fa-file-video'
+        };
+        
+        return iconMap[ext] || 'fas fa-file';
+      }
+
+      // Update file icons
+      function updateFileIcons() {
+        document.querySelectorAll('[data-filename]').forEach(item => {
+          const filename = item.getAttribute('data-filename');
+          const icon = item.querySelector('.file-icon i');
+          if (icon) {
+            icon.className = getFileIcon(filename);
+          }
+        });
+      }
+
+      // Clear clipboard function
+      function clearClipboard() {
+        if (textarea.value.trim() && confirm('🗑️ Clear all clipboard content?\n\nThis action cannot be undone.')) {
+          textarea.value = '';
+          socket.emit("textChange", '');
+          showNotification('Clipboard cleared successfully', 'success');
+        }
+      }
+
+      // Simple notification system (VNC friendly - no complex animations)
+      function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+          position: fixed;
+          top: 80px;
+          right: 20px;
+          z-index: 1001;
+          background: var(--card-bg);
+          border: 2px solid var(--primary-blue);
+          color: var(--text-primary);
+          padding: 12px 16px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 500;
+          max-width: 300px;
+          box-shadow: var(--shadow-medium);
+        `;
+        
+        const colors = {
+          success: 'var(--success-green)',
+          error: 'var(--danger-blue)',
+          warning: 'var(--warning-yellow)',
+          info: 'var(--primary-blue)'
+        };
+        
+        notification.style.borderColor = colors[type] || colors.info;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, 3000);
+      }
+
+      // Update file counts
+      function updateFileCounts() {
+        const count = document.querySelectorAll('[data-filename]').length;
+        if (fileCount) fileCount.textContent = count;
+        if (filesCount) filesCount.textContent = count;
+      }
       
       // Handle page unload/close - cancel active uploads
       window.addEventListener('beforeunload', function(event) {
@@ -320,15 +1235,44 @@
         }
       });
 
+      // Socket event handlers
       socket.on("textUpdate", (text) => {
-        textarea.value = text;
+        if (textarea.value !== text) {
+          textarea.value = text;
+          // Subtle visual feedback without complex animations
+          textarea.style.borderLeft = '3px solid var(--primary-blue)';
+          setTimeout(() => {
+            textarea.style.borderLeft = '';
+          }, 1000);
+        }
       });
 
+      socket.on("userConnected", (data) => {
+        connectedUsers = data.userCount || connectedUsers + 1;
+        if (usersCount) usersCount.textContent = connectedUsers;
+        showNotification(`👋 User joined (${connectedUsers} total)`, 'info');
+      });
+
+      socket.on("userDisconnected", (data) => {
+        connectedUsers = data.userCount || Math.max(1, connectedUsers - 1);
+        if (usersCount) usersCount.textContent = connectedUsers;
+        showNotification(`👋 User left (${connectedUsers} total)`, 'info');
+      });
+
+      // Debounced input handling for better performance
+      let inputTimeout;
       textarea.addEventListener("input", () => {
-        socket.emit("textChange", textarea.value);
+        clearTimeout(inputTimeout);
+        inputTimeout = setTimeout(() => {
+          socket.emit("textChange", textarea.value);
+        }, 300);
       });
 
       socket.on("fileUpdate", () => {
+        updateFileList();
+      });
+
+      function updateFileList() {
         fetch(window.location.pathname)
           .then((response) => response.text())
           .then((html) => {
@@ -337,44 +1281,70 @@
             const newFileList = doc.getElementById("file-list");
             if (newFileList) {
               fileList.innerHTML = newFileList.innerHTML;
-              attachDeleteEventListeners(); // Re-attach event listeners after updating the file list
+              attachDeleteEventListeners();
+              updateFileIcons();
+              updateFileCounts();
             }
           })
           .catch((error) => {
             console.error('Error updating file list:', error);
+            showNotification('Failed to update file list', 'error');
           });
-      });
+      }
 
+      // Enhanced form handling
       uploadForm.addEventListener("submit", (event) => {
         event.preventDefault();
         const files = fileInput.files;
         if (files.length > 0) {
           uploadFiles(files);
+          fileInput.value = ''; // Clear input after upload
+        } else {
+          showNotification('Please select files to upload', 'warning');
         }
       });
 
+      // File input change feedback
+      fileInput.addEventListener('change', function(e) {
+        const files = e.target.files;
+        if (files.length > 0) {
+          const fileNames = Array.from(files).map(f => f.name);
+          const displayNames = fileNames.length > 3 
+            ? fileNames.slice(0, 3).join(', ') + ` and ${fileNames.length - 3} more`
+            : fileNames.join(', ');
+          showNotification(`📁 Selected: ${displayNames}`, 'info');
+        }
+      });
+
+      // Enhanced drag and drop with better visual feedback
       let dragCounter = 0;
 
       document.addEventListener("dragenter", (event) => {
         event.preventDefault();
-        if (
-          event.dataTransfer.items &&
-          event.dataTransfer.items[0].kind === "file"
-        ) {
+        if (event.dataTransfer.items && event.dataTransfer.items[0].kind === "file") {
           dragCounter++;
           dropZone.style.display = "flex";
+          
+          // Add visual feedback to upload area
+          const uploadArea = document.querySelector('.upload-area');
+          if (uploadArea) {
+            uploadArea.classList.add('dragover');
+          }
         }
       });
 
       document.addEventListener("dragleave", (event) => {
         event.preventDefault();
-        if (
-          event.dataTransfer.items &&
-          event.dataTransfer.items[0].kind === "file"
-        ) {
+        if (event.dataTransfer.items && event.dataTransfer.items[0].kind === "file") {
           dragCounter--;
           if (dragCounter === 0) {
             dropZone.style.display = "none";
+            
+            // Remove visual feedback
+            const uploadArea = document.querySelector('.upload-area');
+            if (uploadArea) {
+              uploadArea.classList.remove('dragover');
+            }
           }
         }
       });
@@ -384,6 +1354,13 @@
         dropZone.style.display = "none";
         dragCounter = 0;
         const files = event.dataTransfer.files;
+        
+        // Remove visual feedback
+        const uploadArea = document.querySelector('.upload-area');
+        if (uploadArea) {
+          uploadArea.classList.remove('dragover');
+        }
+        
         if (files.length > 0) {
           uploadFiles(files);
         }
@@ -469,10 +1446,14 @@
         }
       }
 
+      // Enhanced upload functions with better UX
       function uploadSmallFiles(files) {
         const formData = new FormData();
+        let totalSize = 0;
+        
         for (let i = 0; i < files.length; i++) {
           formData.append('files', files[i]);
+          totalSize += files[i].size;
         }
 
         const xhr = new XMLHttpRequest();
@@ -488,15 +1469,46 @@
 
         xhr.onloadstart = function () {
           progressContainer.style.display = "block";
-          progressText.textContent = "Uploading files...";
+          progressText.innerHTML = `
+            <i class="fas fa-upload" style="margin-right: 8px;"></i>
+            Uploading ${files.length} file${files.length !== 1 ? 's' : ''} (${formatFileSize(totalSize)})...
+          `;
           chunkProgressSection.style.display = "none";
         };
 
+        xhr.onload = function () {
+          if (xhr.status === 200) {
+            progressText.innerHTML = `
+              <i class="fas fa-check-circle" style="margin-right: 8px; color: var(--success-green);"></i>
+              Upload completed successfully!
+            `;
+            overallProgressBar.classList.add('success');
+            showNotification('Files uploaded successfully!', 'success');
+          } else {
+            progressText.innerHTML = `
+              <i class="fas fa-exclamation-circle" style="margin-right: 8px; color: var(--danger-red);"></i>
+              Upload failed!
+            `;
+            showNotification('Upload failed! Please try again.', 'error');
+          }
+        };
+
+        xhr.onerror = function () {
+          progressText.innerHTML = `
+            <i class="fas fa-exclamation-triangle" style="margin-right: 8px; color: var(--warning-yellow);"></i>
+            Network error during upload!
+          `;
+          showNotification('Network error! Check your connection.', 'error');
+        };
+
         xhr.onloadend = function () {
-          progressContainer.style.display = "none";
-          overallProgressBar.style.width = "0%";
-          overallPercentage.textContent = "0%";
-          progressText.textContent = "";
+          setTimeout(() => {
+            progressContainer.style.display = "none";
+            overallProgressBar.style.width = "0%";
+            overallPercentage.textContent = "0%";
+            progressText.textContent = "";
+            overallProgressBar.classList.remove('success');
+          }, 2000);
           socket.emit("fileUpdate");
         };
 
@@ -705,44 +1717,116 @@
         socket.emit("fileUpdate");
       }
 
+      // Enhanced delete event listeners with better UX
       function attachDeleteEventListeners() {
         const deleteButtons = document.querySelectorAll(".delete-button");
         deleteButtons.forEach((button) => {
-          button.addEventListener("click", () => {
-            const li = button.closest("li");
-            const filename = li.getAttribute("data-filename");
+          button.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const fileItem = button.closest("[data-filename]");
+            const filename = fileItem.getAttribute("data-filename");
 
-            fetch(`${environmentPath}/files/${filename}`, {
-              method: "DELETE",
-            }).then((response) => {
-              if (response.ok) {
-                li.remove();
-                socket.emit("fileUpdate");
-              } else {
-                console.error("Failed to delete file");
-              }
-            });
+            if (confirm(`🗑️ Delete "${filename}"?\n\nThis action cannot be undone.`)) {
+              // Show loading state
+              const originalHTML = button.innerHTML;
+              button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+              button.disabled = true;
+              
+              fetch(`${environmentPath}/files/${filename}`, {
+                method: "DELETE",
+              })
+              .then((response) => {
+                if (response.ok) {
+                  // Simple fade out for VNC compatibility
+                  fileItem.style.opacity = '0.3';
+                  setTimeout(() => {
+                    fileItem.remove();
+                    updateFileCounts();
+                  }, 300);
+                  
+                  socket.emit("fileUpdate");
+                  showNotification(`"${filename}" deleted successfully`, 'success');
+                } else {
+                  button.innerHTML = originalHTML;
+                  button.disabled = false;
+                  showNotification(`Failed to delete "${filename}"`, 'error');
+                }
+              })
+              .catch((error) => {
+                console.error("Delete error:", error);
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+                showNotification(`Error deleting "${filename}"`, 'error');
+              });
+            }
           });
         });
       }
 
-      attachDeleteEventListeners(); // Attach event listeners initially
-
-      // Resizer logic
+      // Enhanced resizer with better performance for VNC
+      let isResizing = false;
+      
       resizer.addEventListener("mousedown", function (e) {
+        e.preventDefault();
+        isResizing = true;
         document.addEventListener("mousemove", resize);
         document.addEventListener("mouseup", stopResize);
+        document.body.style.cursor = 'ew-resize';
+        document.body.style.userSelect = 'none';
       });
 
       function resize(e) {
-        const newWidth = e.clientX - sidebar.offsetLeft;
+        if (!isResizing) return;
+        
+        const minWidth = 300;
+        const maxWidth = Math.min(600, window.innerWidth * 0.6);
+        const newWidth = Math.max(minWidth, Math.min(maxWidth, e.clientX));
         sidebar.style.width = newWidth + "px";
       }
 
       function stopResize() {
+        isResizing = false;
         document.removeEventListener("mousemove", resize);
         document.removeEventListener("mouseup", stopResize);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
       }
+
+      // Keyboard shortcuts
+      document.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + U for upload
+        if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
+          e.preventDefault();
+          fileInput.click();
+        }
+        
+        // Ctrl/Cmd + K for clear
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+          e.preventDefault();
+          clearClipboard();
+        }
+        
+        // ESC to cancel uploads
+        if (e.key === 'Escape' && activeUploads.size > 0) {
+          cancelAllUploads();
+        }
+      });
+
+      // Initialize everything when DOM is loaded
+      document.addEventListener('DOMContentLoaded', function() {
+        initializeApp();
+        attachDeleteEventListeners();
+        updateFileCounts();
+        updateFileIcons();
+      });
+
+      // Initialize immediately since we're in the document
+      initializeApp();
+      attachDeleteEventListeners();
+      updateFileCounts();
+      updateFileIcons();
     </script>
   </body>
 </html>
