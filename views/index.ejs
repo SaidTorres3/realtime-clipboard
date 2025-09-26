@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RealTime Clipboard 2.0 - Professional File Sharing</title>
+    <title>RealTime Clipboard 2.0 - Data Sharing</title>
     <script src="/socket.io/socket.io.js"></script>
     <link href="tailwind.min.css" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet" />
     <style>
       :root {
-        /* Custom V2.0 Professional Dark Blue Theme */
+        /* Custom V2.0 Dark Blue Theme */
         --primary-blue: #2563eb;
         --primary-dark-blue: #1d4ed8;
         --accent-navy: #1e3a8a;
@@ -42,7 +42,7 @@
         --warning-amber: #f59e0b;
         --info-blue: var(--primary-blue);
         
-        /* Professional Shadow System */
+        /* Shadow System */
         --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
         --shadow-soft: 0 4px 6px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.12);
         --shadow-medium: 0 10px 15px rgba(0, 0, 0, 0.2), 0 4px 6px rgba(0, 0, 0, 0.15);
@@ -72,9 +72,6 @@
         -moz-osx-font-smoothing: grayscale;
       }
 
-
-
-      /* Sidebar Styling - Professional Design */
       .sidebar {
         width: 400px;
         min-width: 350px;
@@ -145,7 +142,6 @@
         box-shadow: 0 0 15px rgba(37, 99, 235, 0.4);
       }
 
-      /* Content Area - Professional Layout */
       .content-area {
         flex: 1;
         background: linear-gradient(135deg, var(--dark-bg) 0%, #0f172a 100%);
@@ -211,7 +207,7 @@
 
       .editor-header {
         background: linear-gradient(135deg, var(--darker-bg) 0%, #1e293b 100%);
-        padding: 24px 32px;
+        padding: 12px 32px;
         border-bottom: 1px solid var(--border-primary);
         display: flex;
         justify-content: space-between;
@@ -293,7 +289,6 @@
         height: 100%;
         display: flex;
         flex-direction: column;
-        overflow-x: hidden;
         max-width: 100%;
       }
 
@@ -335,7 +330,7 @@
         background: var(--card-bg);
         border: 2px dashed var(--border-secondary);
         border-radius: 16px;
-        padding: 32px;
+        padding: 16px;
         text-align: center;
         transition: all 0.4s var(--ease-smooth);
         cursor: pointer;
@@ -367,26 +362,26 @@
       }
 
       .upload-icon {
-        font-size: 56px;
+        font-size: 32px;
         background: linear-gradient(135deg, var(--primary-blue), var(--accent-light-blue));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        margin-bottom: 20px;
+        margin-bottom: 8px;
         transition: all 0.3s var(--ease-smooth);
       }
 
       .upload-text {
         color: var(--text-primary);
-        font-size: 16px;
+        font-size: 14px;
         font-weight: 500;
-        margin-bottom: 8px;
+        margin-bottom: 4px;
       }
 
       .upload-subtext {
         color: var(--text-muted);
-        font-size: 14px;
-        margin-bottom: 20px;
+        font-size: 12px;
+        margin-bottom: 8px;
       }
 
       /* Buttons - Premium Design */
@@ -1025,15 +1020,6 @@
       <!-- Sidebar -->
       <div class="sidebar">
         <div class="sidebar-content">
-          <!-- App Header -->
-          <div class="sidebar-section">
-            <h1 class="brand-title">
-              <i class="fas fa-clipboard-list"></i>
-              RealTime Clipboard
-            </h1>
-            <p class="brand-subtitle">Professional File Sharing Platform</p>
-          </div>
-
           <!-- Environment Badge -->
           <% if (typeof environmentName !== 'undefined' && environmentName !== 'default') { %>
           <div class="environment-badge">
@@ -1155,25 +1141,6 @@
               <% } %>
             </div>
           </div>
-
-          <!-- Stats Section -->
-          <div class="stats-section">
-            <div class="stat-item">
-              <span class="stat-label">Files</span>
-              <span class="stat-value" id="files-count"><%= files.length %></span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">Connected Users</span>
-              <span class="stat-value" id="users-count">1</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">Status</span>
-              <span class="stat-value">
-                <i class="fas fa-circle" style="color: var(--success-green); font-size: 8px;"></i>
-                Online
-              </span>
-            </div>
-          </div>
         </div>
         <div class="resizer"></div>
       </div>
@@ -1207,7 +1174,7 @@ Start typing your shared content here...
 
 ✨ Features:
 • Real-time synchronization across all connected devices
-• Professional file sharing with drag & drop support
+• File sharing with drag & drop support
 • Large file upload with chunked processing
 • Clean, performance-optimized design
 
@@ -1254,7 +1221,6 @@ Start typing your shared content here...
     </div>
 
     <script>
-      // RealTime Clipboard 2.0 - Professional JavaScript
       const socket = io();
       const textarea = document.getElementById("textarea");
       const fileList = document.getElementById("file-list");
@@ -1381,7 +1347,7 @@ Start typing your shared content here...
           console.log('VNC connection detected - animations disabled for better performance');
         }
         
-        console.log('%c🚀 RealTime Clipboard 2.0 Professional Edition Loaded!', 
+        console.log('%c🚀 RealTime Clipboard 2.0!', 
           'color: #2563eb; font-size: 16px; font-weight: bold;');
       }
 
