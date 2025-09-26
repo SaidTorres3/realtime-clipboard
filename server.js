@@ -112,6 +112,12 @@ const isTextFile = (filename) => {
   return textExtensions.includes(ext) || filename.toLowerCase() === 'readme' || filename.toLowerCase() === 'license';
 };
 
+// Helper function to check if file is a PDF
+const isPDFFile = (filename) => {
+  const ext = path.extname(filename).toLowerCase();
+  return ext === '.pdf';
+};
+
 const getEnvironmentUploadsDir = (environmentName, createIfNotExists = false) => {
   const envDir = path.join(uploadsDir, environmentName);
   if (createIfNotExists && !fs.existsSync(envDir)) {
@@ -303,7 +309,8 @@ const createNewVersion = (environmentName, originalFileName, fileSize, sourceFil
     uploadedAt: new Date().toISOString(),
     fileSize,
     isImageFile: isImageFile(originalFileName),
-    isTextFile: isTextFile(originalFileName)
+    isTextFile: isTextFile(originalFileName),
+    isPDFFile: isPDFFile(originalFileName)
   };
   
   // Update metadata
@@ -429,6 +436,7 @@ const getAllVersionedFiles = (environmentName) => {
           versions: metadata.versions,
           isImageFile: isImageFile(fileName),
           isTextFile: isTextFile(fileName),
+          isPDFFile: isPDFFile(fileName),
           size: stats.size,
           lastModified: stats.mtime
         });
@@ -871,6 +879,61 @@ app.get('/files/:filename/preview', (req, res) => {
     } else {
       res.status(500).json({ error: 'Failed to read file' });
     }
+  }
+});
+
+// PDF preview endpoints
+app.get('/:environment/files/:filename/pdf-preview', (req, res) => {
+  try {
+    const environmentName = req.params.environment || 'default';
+    const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
+    const filename = req.params.filename;
+    const filePath = path.join(getEnvironmentUploadsDir(sanitizedEnv), filename);
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    if (!isPDFFile(filename)) {
+      return res.status(415).json({ error: 'File is not a PDF' });
+    }
+
+    // Set appropriate headers for PDF preview
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="' + filename + '"');
+    
+    // Stream the PDF file
+    const readStream = fs.createReadStream(filePath);
+    readStream.pipe(res);
+  } catch (error) {
+    console.error('Error serving PDF for preview:', error);
+    res.status(500).json({ error: 'Failed to serve PDF file' });
+  }
+});
+
+app.get('/files/:filename/pdf-preview', (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const filePath = path.join(uploadsDir, 'default', filename);
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    if (!isPDFFile(filename)) {
+      return res.status(415).json({ error: 'File is not a PDF' });
+    }
+
+    // Set appropriate headers for PDF preview
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="' + filename + '"');
+    
+    // Stream the PDF file
+    const readStream = fs.createReadStream(filePath);
+    readStream.pipe(res);
+  } catch (error) {
+    console.error('Error serving PDF for preview:', error);
+    res.status(500).json({ error: 'Failed to serve PDF file' });
   }
 });
 

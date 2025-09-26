@@ -116,6 +116,8 @@
                   const fileName = typeof file === 'string' ? file.name || file : file.originalFileName;
                   const isImage = typeof file === 'object' ? (file.isImageFile || file.isImage) : false;
                   const isText = typeof file === 'object' ? file.isTextFile : false;
+                  // Check isPDFFile property first, then fall back to file extension check for older files
+                  const isPDF = typeof file === 'object' ? (file.isPDFFile || (fileName && fileName.toLowerCase().endsWith('.pdf'))) : false;
                   const totalVersions = typeof file === 'object' ? file.totalVersions : 1;
                   const hasMultipleVersions = totalVersions > 1;
                   
@@ -154,7 +156,7 @@
                     }
                   }
                 %>
-                <div class="file-item <%= isImage ? 'has-image' : '' %> <%= isText ? 'has-text' : '' %> <%= hasMultipleVersions ? 'has-versions' : '' %>" 
+                <div class="file-item <%= isImage ? 'has-image' : '' %> <%= isText ? 'has-text' : '' %> <%= isPDF ? 'has-pdf' : '' %> <%= hasMultipleVersions ? 'has-versions' : '' %>" 
                      data-filename="<%= fileName %>" 
                      data-versions="<%= totalVersions %>">
                   <div class="file-info">
@@ -178,6 +180,15 @@
                           <i class="fas fa-file-alt"></i>
                         </div>
                         <div class="text-overlay">
+                          <i class="fas fa-eye"></i>
+                        </div>
+                      </div>
+                    <% } else if (isPDF) { %>
+                      <div class="pdf-preview-icon" 
+                           data-pdf-url="<%= typeof environmentPath !== 'undefined' ? environmentPath : '' %>/files/<%= fileName %>/pdf-preview"
+                           data-filename="<%= fileName %>">
+                        <div class="pdf-icon-text">PDF</div>
+                        <div class="pdf-overlay">
                           <i class="fas fa-eye"></i>
                         </div>
                       </div>
@@ -343,6 +354,20 @@ Start typing your shared content here...
       </div>
     </div>
 
+    <!-- PDF Preview Modal -->
+    <div id="pdf-modal" class="image-modal">
+      <div class="modal-content pdf-modal-content">
+        <button class="modal-close" onclick="closePDFModal()">×</button>
+        <div class="pdf-modal-header">
+          <div id="pdf-modal-filename" class="modal-filename"></div>
+          <div id="pdf-modal-info" class="pdf-modal-info"></div>
+        </div>
+        <div class="pdf-modal-body">
+          <iframe id="pdf-modal-iframe" class="pdf-viewer"></iframe>
+        </div>
+      </div>
+    </div>
+
     <!-- Version Management Modal -->
     <div id="version-modal" class="image-modal">
       <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
@@ -483,6 +508,9 @@ Start typing your shared content here...
         // Setup text previews
         setupTextPreviews();
         
+        // Setup PDF previews
+        setupPDFPreviews();
+        
         // VNC performance check
         if (isVNCConnection()) {
           document.body.classList.add('no-animate');
@@ -493,6 +521,7 @@ Start typing your shared content here...
         document.addEventListener('click', function(e) {
           const imageModal = document.getElementById('image-modal');
           const textModal = document.getElementById('text-modal');
+          const pdfModal = document.getElementById('pdf-modal');
           const versionModal = document.getElementById('version-modal');
           
           if (e.target === imageModal) {
@@ -500,6 +529,9 @@ Start typing your shared content here...
           }
           if (e.target === textModal) {
             closeTextModal();
+          }
+          if (e.target === pdfModal) {
+            closePDFModal();
           }
           if (e.target === versionModal) {
             closeVersionModal();
@@ -511,12 +543,15 @@ Start typing your shared content here...
           if (e.key === 'Escape') {
             const imageModal = document.getElementById('image-modal');
             const textModal = document.getElementById('text-modal');
+            const pdfModal = document.getElementById('pdf-modal');
             const versionModal = document.getElementById('version-modal');
             
             if (imageModal.classList.contains('show')) {
               closeImageModal();
             } else if (textModal.classList.contains('show')) {
               closeTextModal();
+            } else if (pdfModal.classList.contains('show')) {
+              closePDFModal();
             } else if (versionModal.classList.contains('show')) {
               closeVersionModal();
             }
@@ -579,6 +614,14 @@ Start typing your shared content here...
       function updateFileIcons() {
         document.querySelectorAll('[data-filename]').forEach(item => {
           const filename = item.getAttribute('data-filename');
+          
+          // Skip files that have preview icons (image, text, or PDF)
+          if (item.querySelector('.image-thumbnail') || 
+              item.querySelector('.text-preview-icon') || 
+              item.querySelector('.pdf-preview-icon')) {
+            return; // These files already have their preview elements
+          }
+          
           const icon = item.querySelector('.file-icon i');
           
           // Check if this is an image file
@@ -595,6 +638,7 @@ Start typing your shared content here...
         // Setup hover functionality for image thumbnails
         setupImageThumbnails();
         setupTextPreviews();
+        setupPDFPreviews();
       }
       
       // Helper function to check if a file is an image
@@ -602,6 +646,12 @@ Start typing your shared content here...
         const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico', '.tiff', '.tif'];
         const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
         return imageExtensions.includes(ext);
+      }
+      
+      // Helper function to check if a file is a PDF
+      function isPDFFile(filename) {
+        const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+        return ext === '.pdf';
       }
       
       // Simple modal functions for image preview
@@ -703,6 +753,69 @@ Start typing your shared content here...
         const modal = document.getElementById('text-modal');
         modal.classList.remove('show');
         document.body.style.overflow = '';
+      }
+
+      // PDF Modal Functions
+      function showPDFModal(pdfUrl, filename) {
+        console.log('Opening PDF preview for:', pdfUrl, filename);
+        
+        const modal = document.getElementById('pdf-modal');
+        const modalFilename = document.getElementById('pdf-modal-filename');
+        const modalInfo = document.getElementById('pdf-modal-info');
+        const modalIframe = document.getElementById('pdf-modal-iframe');
+        
+        // Show modal and loading state
+        modalFilename.textContent = filename;
+        modalInfo.textContent = 'Loading PDF...';
+        modalIframe.src = '';
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        
+        // Load PDF in iframe
+        modalIframe.src = pdfUrl;
+        modalInfo.textContent = `PDF Document`;
+        
+        // Handle iframe load events
+        modalIframe.onload = function() {
+          modalInfo.textContent = `PDF Document • Ready`;
+        };
+        
+        modalIframe.onerror = function() {
+          modalInfo.textContent = `Error loading PDF`;
+        };
+      }
+      
+      function closePDFModal() {
+        const modal = document.getElementById('pdf-modal');
+        const modalIframe = document.getElementById('pdf-modal-iframe');
+        modal.classList.remove('show');
+        modalIframe.src = ''; // Stop loading PDF
+        document.body.style.overflow = '';
+      }
+
+      function setupPDFPreviews() {
+        document.querySelectorAll('.pdf-preview-icon').forEach(preview => {
+          // Remove existing event listeners to prevent duplicates
+          const newPreview = preview.cloneNode(true);
+          preview.parentNode.replaceChild(newPreview, preview);
+          
+          console.log('Setting up PDF preview click for:', newPreview);
+          
+          // Add click functionality
+          newPreview.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const pdfUrl = this.getAttribute('data-pdf-url');
+            const filename = this.getAttribute('data-filename');
+            
+            console.log('PDF preview clicked:', pdfUrl, filename);
+            
+            if (pdfUrl && filename) {
+              showPDFModal(pdfUrl, filename);
+            }
+          });
+        });
       }
       
       // Setup click functionality for text preview icons
@@ -874,6 +987,7 @@ Start typing your shared content here...
             updateFileIcons();
             setupImageThumbnails();
             setupTextPreviews();
+            setupPDFPreviews();
             updateFileCounts();
           })
           .catch((error) => {
@@ -893,6 +1007,7 @@ Start typing your shared content here...
                   updateFileIcons();
                   setupImageThumbnails();
                   setupTextPreviews();
+                  setupPDFPreviews();
                   updateFileCounts();
                 }
               })
@@ -918,13 +1033,15 @@ Start typing your shared content here...
           const fileName = file.originalFileName;
           const isImage = file.isImageFile;
           const isText = file.isTextFile;
+          // Check isPDFFile property first, then fall back to file extension check for older files
+          const isPDF = file.isPDFFile || (fileName && fileName.toLowerCase().endsWith('.pdf'));
           const totalVersions = file.totalVersions;
           const hasMultipleVersions = totalVersions > 1;
           const uploadDate = file.currentVersion ? formatDate(file.currentVersion.uploadedAt) : 'Unknown';
           const fileSize = file.currentVersion ? formatFileSize(file.currentVersion.fileSize) : '';
           
           return `
-            <div class="file-item ${isImage ? 'has-image' : ''} ${isText ? 'has-text' : ''} ${hasMultipleVersions ? 'has-versions' : ''}" 
+            <div class="file-item ${isImage ? 'has-image' : ''} ${isText ? 'has-text' : ''} ${isPDF ? 'has-pdf' : ''} ${hasMultipleVersions ? 'has-versions' : ''}" 
                  data-filename="${fileName}" 
                  data-versions="${totalVersions}">
               <div class="file-info">
@@ -948,6 +1065,15 @@ Start typing your shared content here...
                       <i class="fas fa-file-alt"></i>
                     </div>
                     <div class="text-overlay">
+                      <i class="fas fa-eye"></i>
+                    </div>
+                  </div>
+                ` : isPDF ? `
+                  <div class="pdf-preview-icon" 
+                       data-pdf-url="${environmentPath}/files/${fileName}/pdf-preview"
+                       data-filename="${fileName}">
+                    <div class="pdf-icon-text">PDF</div>
+                    <div class="pdf-overlay">
                       <i class="fas fa-eye"></i>
                     </div>
                   </div>
@@ -1870,6 +1996,7 @@ Start typing your shared content here...
         updateFileIcons();
         setupImageThumbnails();
         setupTextPreviews();
+        setupPDFPreviews();
       });
 
       // Initialize immediately since we're in the document
@@ -1879,6 +2006,7 @@ Start typing your shared content here...
       updateFileIcons();
       setupImageThumbnails();
       setupTextPreviews();
+      setupPDFPreviews();
     </script>
   </body>
 </html>

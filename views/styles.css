@@ -1073,6 +1073,113 @@ body {
   color: var(--accent-cyan);
 }
 
+/* PDF Preview Styles */
+.pdf-preview-icon {
+  position     : relative;
+  display      : inline-block;
+  width        : 60px;
+  height       : 60px;
+  border-radius: 8px;
+  overflow     : hidden;
+  cursor       : pointer;
+  border       : 2px solid var(--border-primary);
+  transition   : all 0.3s var(--ease-smooth);
+  box-shadow   : var(--shadow-subtle);
+  background   : linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+}
+
+/* Generic small badge to show file type (e.g., PDF) over thumbnails */
+.file-type-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.pdf-preview-icon:hover {
+  border-color: #dc2626;
+  transform   : scale(1.05);
+  box-shadow  : var(--shadow-medium);
+}
+
+.pdf-icon {
+  position       : absolute;
+  top            : 0;
+  left           : 0;
+  right          : 0;
+  bottom         : 0;
+  display        : flex;
+  align-items    : center;
+  justify-content: center;
+  color          : white;
+  font-size      : 24px;
+  transition     : all 0.3s var(--ease-smooth);
+}
+
+/* Pure text variant for PDF thumbnails */
+.pdf-icon-text {
+  position       : absolute;
+  inset          : 0;
+  display        : flex;
+  align-items    : center;
+  justify-content: center;
+  font-weight    : 700;
+  font-size      : 18px;
+  font-family    : 'Inter', system-ui, sans-serif;
+  letter-spacing : 1px;
+  color          : #fff;
+  text-shadow    : 0 1px 2px rgba(0,0,0,0.4);
+  pointer-events : none;
+  user-select    : none;
+}
+
+.pdf-overlay {
+  position       : absolute;
+  top            : 0;
+  left           : 0;
+  right          : 0;
+  bottom         : 0;
+  background     : rgba(220, 38, 38, 0.85);
+  display        : flex;
+  align-items    : center;
+  justify-content: center;
+  color          : white;
+  font-size      : 16px;
+  opacity        : 0;
+  transition     : opacity 0.3s var(--ease-smooth);
+  pointer-events : none;
+}
+
+.pdf-preview-icon:hover .pdf-overlay {
+  opacity: 1;
+}
+
+.pdf-preview-icon:hover .pdf-icon {
+  color: #fecaca;
+}
+
+.file-item.has-pdf {
+  align-items: center;
+  padding    : 12px 16px;
+}
+
+.file-item.has-pdf .file-info {
+  align-items: center;
+}
+
+.file-item.has-pdf .pdf-preview-icon {
+  margin-right: 8px;
+}
+
 .image-modal {
   position       : fixed;
   top            : 0;
@@ -1204,6 +1311,44 @@ body {
 
 .text-content::-webkit-scrollbar-thumb:hover {
   background: var(--border-secondary);
+}
+
+/* PDF Modal Styles */
+.pdf-modal-content {
+  max-width : 90vw;
+  max-height: 90vh;
+  width     : 900px;
+  height    : 700px;
+}
+
+.pdf-modal-header {
+  display        : flex;
+  justify-content: space-between;
+  align-items    : center;
+  margin-bottom  : 15px;
+  padding-bottom : 10px;
+  border-bottom  : 1px solid var(--border-primary);
+}
+
+.pdf-modal-info {
+  font-size: 12px;
+  color    : var(--text-muted);
+}
+
+.pdf-modal-body {
+  height       : calc(100% - 60px);
+  overflow     : hidden;
+  border       : 1px solid var(--border-primary);
+  border-radius: 8px;
+  background   : var(--darker-bg);
+}
+
+.pdf-viewer {
+  width        : 100%;
+  height       : 100%;
+  border       : none;
+  border-radius: 8px;
+  background   : white;
 }
 
 /* File type specific syntax highlighting hints */
