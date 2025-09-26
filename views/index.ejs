@@ -803,6 +803,180 @@
         #progress-container {
           padding: 15px;
         }
+        
+        .confirm-dialog {
+          max-width: 90%;
+          padding: 24px;
+          margin: 20px;
+        }
+        
+        .confirm-header {
+          margin-bottom: 16px;
+        }
+        
+        .confirm-title {
+          font-size: 18px;
+        }
+        
+        .confirm-message {
+          font-size: 14px;
+          margin-bottom: 20px;
+        }
+        
+        .confirm-buttons {
+          flex-direction: column;
+          gap: 8px;
+        }
+        
+        .confirm-btn {
+          width: 100%;
+          padding: 14px;
+        }
+      }
+
+      /* Custom Confirmation Dialog */
+      .confirm-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(8px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        opacity: 0;
+        transition: opacity 0.3s var(--ease-smooth);
+      }
+      
+      .confirm-overlay.show {
+        opacity: 1;
+      }
+
+      .confirm-dialog {
+        background: var(--card-bg);
+        border: 1px solid var(--border-primary);
+        border-radius: 16px;
+        padding: 32px;
+        max-width: 450px;
+        width: 90%;
+        box-shadow: var(--shadow-strong);
+        transform: scale(0.9) translateY(20px);
+        transition: all 0.3s var(--ease-smooth);
+        position: relative;
+      }
+      
+      .confirm-overlay.show .confirm-dialog {
+        transform: scale(1) translateY(0);
+      }
+      
+      .confirm-dialog::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary-blue) 0%, var(--accent-light-blue) 100%);
+        border-radius: 16px 16px 0 0;
+      }
+
+      .confirm-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+
+      .confirm-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        color: white;
+      }
+      
+      .confirm-icon.warning {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+      }
+      
+      .confirm-icon.danger {
+        background: linear-gradient(135deg, #dc2626, #b91c1c);
+      }
+      
+      .confirm-icon.info {
+        background: linear-gradient(135deg, var(--primary-blue), var(--accent-light-blue));
+      }
+
+      .confirm-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+      }
+
+      .confirm-message {
+        color: var(--text-secondary);
+        font-size: 16px;
+        line-height: 1.5;
+        margin-bottom: 24px;
+        white-space: pre-line;
+      }
+
+      .confirm-buttons {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+      }
+
+      .confirm-btn {
+        padding: 12px 24px;
+        border-radius: 10px;
+        border: none;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s var(--ease-smooth);
+        min-width: 100px;
+      }
+
+      .confirm-btn.secondary {
+        background: var(--card-hover-bg);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-secondary);
+      }
+
+      .confirm-btn.secondary:hover {
+        background: var(--darker-bg);
+        color: var(--text-primary);
+        transform: translateY(-1px);
+      }
+
+      .confirm-btn.primary {
+        background: linear-gradient(135deg, var(--primary-blue), var(--primary-dark-blue));
+        color: white;
+      }
+
+      .confirm-btn.primary:hover {
+        background: linear-gradient(135deg, var(--primary-dark-blue), var(--accent-light-blue));
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+      }
+
+      .confirm-btn.danger {
+        background: linear-gradient(135deg, #dc2626, #b91c1c);
+        color: white;
+      }
+
+      .confirm-btn.danger:hover {
+        background: linear-gradient(135deg, #b91c1c, #991b1b);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
       }
 
       /* Utility Classes */
@@ -1071,6 +1245,25 @@ Start typing your shared content here...
       </div>
     </div>
 
+    <!-- Custom Confirmation Dialog -->
+    <div id="confirm-overlay" class="confirm-overlay">
+      <div class="confirm-dialog">
+        <div class="confirm-header">
+          <div id="confirm-icon" class="confirm-icon">
+            <i class="fas fa-question-circle"></i>
+          </div>
+          <h3 id="confirm-title" class="confirm-title">Confirm Action</h3>
+        </div>
+        <div id="confirm-message" class="confirm-message">
+          Are you sure you want to proceed?
+        </div>
+        <div class="confirm-buttons">
+          <button id="confirm-cancel" class="confirm-btn secondary">Cancel</button>
+          <button id="confirm-ok" class="confirm-btn primary">Confirm</button>
+        </div>
+      </div>
+    </div>
+
     <script>
       // RealTime Clipboard 2.0 - Professional JavaScript
       const socket = io();
@@ -1102,6 +1295,89 @@ Start typing your shared content here...
       let connectedUsers = 1;
       let activeUploads = new Set();
       
+      // Custom Confirmation Dialog System
+      function showConfirm(message, title = 'Confirm Action', type = 'warning') {
+        return new Promise((resolve) => {
+          const overlay = document.getElementById('confirm-overlay');
+          const dialog = document.querySelector('.confirm-dialog');
+          const titleEl = document.getElementById('confirm-title');
+          const messageEl = document.getElementById('confirm-message');
+          const iconEl = document.getElementById('confirm-icon');
+          const okBtn = document.getElementById('confirm-ok');
+          const cancelBtn = document.getElementById('confirm-cancel');
+          
+          // Set content
+          titleEl.textContent = title;
+          messageEl.textContent = message;
+          
+          // Set icon and styling based on type
+          iconEl.className = `confirm-icon ${type}`;
+          switch(type) {
+            case 'danger':
+              iconEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+              okBtn.className = 'confirm-btn danger';
+              okBtn.textContent = 'Delete';
+              break;
+            case 'warning':
+              iconEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+              okBtn.className = 'confirm-btn primary';
+              okBtn.textContent = 'Confirm';
+              break;
+            case 'info':
+              iconEl.innerHTML = '<i class="fas fa-info-circle"></i>';
+              okBtn.className = 'confirm-btn primary';
+              okBtn.textContent = 'OK';
+              break;
+            default:
+              iconEl.innerHTML = '<i class="fas fa-question-circle"></i>';
+              okBtn.className = 'confirm-btn primary';
+              okBtn.textContent = 'Confirm';
+          }
+          
+          // Show dialog with animation
+          overlay.style.display = 'flex';
+          requestAnimationFrame(() => {
+            overlay.classList.add('show');
+          });
+          
+          // Handle responses
+          const handleResponse = (result) => {
+            overlay.classList.remove('show');
+            setTimeout(() => {
+              overlay.style.display = 'none';
+            }, 300);
+            resolve(result);
+          };
+          
+          // Event listeners
+          okBtn.onclick = () => handleResponse(true);
+          cancelBtn.onclick = () => handleResponse(false);
+          
+          // Close on overlay click
+          overlay.onclick = (e) => {
+            if (e.target === overlay) {
+              handleResponse(false);
+            }
+          };
+          
+          // Keyboard support
+          const handleKeydown = (e) => {
+            if (e.key === 'Escape') {
+              handleResponse(false);
+              document.removeEventListener('keydown', handleKeydown);
+            } else if (e.key === 'Enter') {
+              handleResponse(true);
+              document.removeEventListener('keydown', handleKeydown);
+            }
+          };
+          
+          document.addEventListener('keydown', handleKeydown);
+          
+          // Focus the OK button
+          setTimeout(() => okBtn.focus(), 100);
+        });
+      }
+      
       // Initialize application
       function initializeApp() {
         // Join the appropriate environment room
@@ -1117,7 +1393,7 @@ Start typing your shared content here...
         }
         
         console.log('%c🚀 RealTime Clipboard 2.0 Professional Edition Loaded!', 
-          'color: #ff6b35; font-size: 16px; font-weight: bold;');
+          'color: #2563eb; font-size: 16px; font-weight: bold;');
       }
 
       // Detect VNC connection (heuristic)
@@ -1180,11 +1456,19 @@ Start typing your shared content here...
       }
 
       // Clear clipboard function
-      function clearClipboard() {
-        if (textarea.value.trim() && confirm('🗑️ Clear all clipboard content?\n\nThis action cannot be undone.')) {
-          textarea.value = '';
-          socket.emit("textChange", '');
-          showNotification('Clipboard cleared successfully', 'success');
+      async function clearClipboard() {
+        if (textarea.value.trim()) {
+          const confirmed = await showConfirm(
+            'This will permanently clear all clipboard content.\n\nThis action cannot be undone.',
+            'Clear Clipboard',
+            'warning'
+          );
+          
+          if (confirmed) {
+            textarea.value = '';
+            socket.emit("textChange", '');
+            showNotification('Clipboard cleared successfully', 'success');
+          }
         }
       }
 
@@ -1426,14 +1710,20 @@ Start typing your shared content here...
       }
 
       // Function to cancel all active uploads
-      function cancelAllUploads() {
+      async function cancelAllUploads() {
         if (activeUploads.size === 0) {
-          alert('No active uploads to cancel.');
+          showNotification('No active uploads to cancel.', 'info');
           return;
         }
         
         const uploadCount = activeUploads.size;
-        if (confirm(`Are you sure you want to cancel ${uploadCount} active upload(s)?`)) {
+        const confirmed = await showConfirm(
+          `This will cancel ${uploadCount} active upload${uploadCount !== 1 ? 's' : ''}.\n\nFiles will be cleaned up automatically.`,
+          'Cancel Uploads',
+          'warning'
+        );
+        
+        if (confirmed) {
           console.log(`Canceling ${uploadCount} active uploads...`);
           
           activeUploads.forEach(async (uploadId) => {
@@ -1455,7 +1745,7 @@ Start typing your shared content here...
           chunkPercentage.textContent = "0%";
           chunkProgressSection.style.display = "none";
           
-          alert('Upload(s) canceled successfully. Files will be cleaned up shortly.');
+          showNotification('Uploads canceled successfully. Files will be cleaned up shortly.', 'success');
         }
       }
 
@@ -1753,14 +2043,20 @@ Start typing your shared content here...
       function attachDeleteEventListeners() {
         const deleteButtons = document.querySelectorAll(".delete-button");
         deleteButtons.forEach((button) => {
-          button.addEventListener("click", (e) => {
+          button.addEventListener("click", async (e) => {
             e.preventDefault();
             e.stopPropagation();
             
             const fileItem = button.closest("[data-filename]");
             const filename = fileItem.getAttribute("data-filename");
 
-            if (confirm(`🗑️ Delete "${filename}"?\n\nThis action cannot be undone.`)) {
+            const confirmed = await showConfirm(
+              `This will permanently delete "${filename}".\n\nThis action cannot be undone.`,
+              'Delete File',
+              'danger'
+            );
+            
+            if (confirmed) {
               // Show loading state
               const originalHTML = button.innerHTML;
               button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
