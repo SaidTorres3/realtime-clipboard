@@ -538,18 +538,13 @@
         color: var(--primary-blue);
       }
 
-      /* Progress Container - VNC Optimized */
-      #progress-container {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        background: linear-gradient(135deg, var(--darker-bg) 0%, #1e293b 100%);
-        border-top: 3px solid var(--primary-blue);
-        padding: 24px;
-        box-shadow: var(--shadow-strong);
-        display: none;
-        z-index: 1000;
+      /* Inline Progress Card */
+      .progress-card {
+        background: linear-gradient(135deg, var(--card-bg) 0%, var(--darker-bg) 100%);
+        border: 2px solid var(--primary-blue);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: var(--shadow-medium);
       }
 
       .progress-section {
@@ -800,8 +795,8 @@
           font-size: 36px;
         }
 
-        #progress-container {
-          padding: 15px;
+        .progress-card {
+          padding: 12px;
         }
         
         .confirm-dialog {
@@ -1070,6 +1065,49 @@
                 />
               </div>
             </form>
+
+            <!-- Inline Progress Section -->
+            <div id="inline-progress-container" style="display: none; margin-top: 20px;">
+              <div class="progress-card">
+                <div id="progress-text" class="progress-label mb-2">
+                  <i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>
+                  Processing...
+                </div>
+                
+                <!-- Overall Progress -->
+                <div class="progress-section">
+                  <div class="progress-header">
+                    <span class="progress-label">Overall Progress</span>
+                    <span id="overall-percentage" class="progress-percentage">0%</span>
+                  </div>
+                  <div class="progress-track">
+                    <div id="overall-progress-bar" class="progress-bar" style="width: 0%"></div>
+                  </div>
+                </div>
+                
+                <!-- Current Chunk Progress -->
+                <div id="chunk-progress-section" style="display: none;" class="progress-section">
+                  <div class="progress-header">
+                    <span class="progress-label" id="chunk-label">Current Chunk</span>
+                    <div class="flex items-center gap-2">
+                      <span id="chunk-percentage" class="progress-percentage">0%</span>
+                      <button 
+                        id="cancel-upload-btn" 
+                        class="btn btn-danger"
+                        style="padding: 4px 8px; font-size: 11px;"
+                        onclick="cancelAllUploads()"
+                        title="Cancel upload"
+                      >
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="progress-track">
+                    <div id="chunk-progress-bar" class="progress-bar" style="width: 0%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Files Section -->
@@ -1183,49 +1221,7 @@ Start typing your shared content here...
       </div>
     </div>
 
-    <!-- Progress Container -->
-    <div id="progress-container">
-      <div style="max-width: 800px; margin: 0 auto;">
-        <div id="progress-text" class="progress-label mb-2">
-          <i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>
-          Processing...
-        </div>
-        
-        <!-- Overall Progress -->
-        <div class="progress-section">
-          <div class="progress-header">
-            <span class="progress-label">Overall Progress</span>
-            <span id="overall-percentage" class="progress-percentage">0%</span>
-          </div>
-          <div class="progress-track">
-            <div id="overall-progress-bar" class="progress-bar" style="width: 0%"></div>
-          </div>
-        </div>
-        
-        <!-- Current Chunk Progress -->
-        <div id="chunk-progress-section" style="display: none;" class="progress-section">
-          <div class="progress-header">
-            <span class="progress-label" id="chunk-label">Current Chunk</span>
-            <div class="flex items-center gap-2">
-              <span id="chunk-percentage" class="progress-percentage">0%</span>
-              <button 
-                id="cancel-upload-btn" 
-                class="btn btn-danger"
-                style="padding: 6px 10px; font-size: 12px;"
-                onclick="cancelAllUploads()"
-                title="Cancel upload"
-              >
-                <i class="fas fa-times"></i>
-                Cancel
-              </button>
-            </div>
-          </div>
-          <div class="progress-track">
-            <div id="chunk-progress-bar" class="progress-bar" style="width: 0%"></div>
-          </div>
-        </div>
-      </div>
-    </div>
+
 
     <!-- Drop Zone -->
     <div id="drop-zone">
@@ -1267,7 +1263,7 @@ Start typing your shared content here...
       const uploadForm = document.getElementById("upload-form");
       const resizer = document.querySelector(".resizer");
       const sidebar = document.querySelector(".sidebar");
-      const progressContainer = document.getElementById("progress-container");
+      const progressContainer = document.getElementById("inline-progress-container");
       const progressText = document.getElementById("progress-text");
       const overallProgressBar = document.getElementById("overall-progress-bar");
       const overallPercentage = document.getElementById("overall-percentage");
