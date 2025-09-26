@@ -983,6 +983,155 @@
         box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
       }
 
+      /* Image Thumbnail Styles */
+      .image-thumbnail {
+        position: relative;
+        display: inline-block;
+        width: 60px;
+        height: 60px;
+        border-radius: 8px;
+        overflow: hidden;
+        cursor: pointer;
+        border: 2px solid var(--border-primary);
+        transition: all 0.3s var(--ease-smooth);
+        box-shadow: var(--shadow-subtle);
+      }
+      
+      .image-thumbnail:hover {
+        border-color: var(--primary-blue);
+        transform: scale(1.05);
+        box-shadow: var(--shadow-medium);
+      }
+      
+      .thumbnail-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      
+      .image-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(37, 99, 235, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 16px;
+        opacity: 0;
+        transition: opacity 0.3s var(--ease-smooth);
+        pointer-events: none;
+      }
+      
+      .image-thumbnail:hover .image-overlay {
+        opacity: 1;
+      }
+      
+      /* Simple Modal Image Preview */
+      .image-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        cursor: pointer;
+      }
+      
+      .image-modal.show {
+        display: flex !important;
+      }
+      
+      .modal-content {
+        max-width: 90vw;
+        max-height: 90vh;
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        position: relative;
+      }
+      
+      .modal-image {
+        max-width: 100%;
+        max-height: 70vh;
+        object-fit: contain;
+        border-radius: 8px;
+        display: block;
+      }
+      
+      .modal-close {
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        width: 30px;
+        height: 30px;
+        background: var(--primary-blue);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .modal-close:hover {
+        background: var(--primary-dark-blue);
+      }
+      
+      .modal-filename {
+        text-align: center;
+        margin-top: 10px;
+        color: var(--text-primary);
+        font-size: 14px;
+        font-weight: 500;
+      }
+      
+      .preview-img {
+        max-width: 400px;
+        max-height: 400px;
+        object-fit: contain;
+        border-radius: 8px;
+        display: block;
+      }
+      
+      /* File item layout adjustments for images */
+      .file-item.has-image {
+        align-items: center;
+        padding: 12px 16px;
+      }
+      
+      .file-item.has-image .file-info {
+        align-items: center;
+      }
+      
+      .file-item.has-image .file-icon {
+        width: auto;
+        margin-right: 8px;
+      }
+      
+      .file-item.has-image .file-name {
+        margin-left: 8px;
+      }
+      
+      /* Enhanced image icon styling */
+      .file-icon.image-icon {
+        background: linear-gradient(135deg, var(--primary-blue), var(--accent-light-blue));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
       /* Utility Classes */
       .hidden {
         display: none !important;
@@ -1125,21 +1274,39 @@
               <div style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
                 <i class="fas fa-folder-open" style="font-size: 48px; margin-bottom: 15px; display: block; opacity: 0.5;"></i>
                 <p>No files uploaded yet</p>
+                <p style="font-size: 12px; margin-top: 8px;">💡 Paste images directly with Ctrl+V</p>
               </div>
               <% } else { %>
-                <% files.forEach(file => { %>
-                <div class="file-item" data-filename="<%= file %>">
+                <% files.forEach(file => { 
+                  const fileName = typeof file === 'string' ? file : file.name;
+                  const isImage = typeof file === 'object' ? file.isImage : false;
+                %>
+                <div class="file-item <%= isImage ? 'has-image' : '' %>" data-filename="<%= fileName %>">
                   <div class="file-info">
-                    <div class="file-icon">
-                      <i class="fas fa-file" id="file-icon-<%= file.replace(/[^a-zA-Z0-9]/g, '') %>"></i>
-                    </div>
+                    <% if (isImage) { %>
+                      <div class="image-thumbnail" 
+                           data-image-url="<%= typeof environmentPath !== 'undefined' ? environmentPath : '' %>/files/<%= fileName %>"
+                           data-filename="<%= fileName %>">
+                        <img src="<%= typeof environmentPath !== 'undefined' ? environmentPath : '' %>/files/<%= fileName %>" 
+                             alt="<%= fileName %>" 
+                             class="thumbnail-img"
+                             loading="lazy" />
+                        <div class="image-overlay">
+                          <i class="fas fa-search-plus"></i>
+                        </div>
+                      </div>
+                    <% } else { %>
+                      <div class="file-icon">
+                        <i class="fas fa-file" id="file-icon-<%= fileName.replace(/[^a-zA-Z0-9]/g, '') %>"></i>
+                      </div>
+                    <% } %>
                     <a
-                      href="<%= typeof environmentPath !== 'undefined' ? environmentPath : '' %>/files/<%= file %>"
+                      href="<%= typeof environmentPath !== 'undefined' ? environmentPath : '' %>/files/<%= fileName %>"
                       download
                       class="file-name"
-                      title="<%= file %>"
+                      title="<%= fileName %>"
                     >
-                      <%= file %>
+                      <%= fileName %>
                     </a>
                   </div>
                   <button
@@ -1231,6 +1398,15 @@ Start typing your shared content here...
           <button id="confirm-cancel" class="confirm-btn secondary">Cancel</button>
           <button id="confirm-ok" class="confirm-btn primary">Confirm</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Image Preview Modal -->
+    <div id="image-modal" class="image-modal">
+      <div class="modal-content">
+        <button class="modal-close" onclick="closeImageModal()">×</button>
+        <img id="modal-image" class="modal-image" src="" alt="">
+        <div id="modal-filename" class="modal-filename"></div>
       </div>
     </div>
 
@@ -1361,6 +1537,21 @@ Start typing your shared content here...
           console.log('VNC connection detected - animations disabled for better performance');
         }
         
+        // Add global click handler to close modal when clicking outside
+        document.addEventListener('click', function(e) {
+          const modal = document.getElementById('image-modal');
+          if (e.target === modal) {
+            closeImageModal();
+          }
+        });
+        
+        // Add escape key to close modal
+        document.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape') {
+            closeImageModal();
+          }
+        });
+        
         console.log('%c🚀 RealTime Clipboard 2.0!', 
           'color: #2563eb; font-size: 16px; font-weight: bold;');
       }
@@ -1413,14 +1604,78 @@ Start typing your shared content here...
         return iconMap[ext] || 'fas fa-file';
       }
 
-      // Update file icons
+      // Update file icons and setup image thumbnails
       function updateFileIcons() {
         document.querySelectorAll('[data-filename]').forEach(item => {
           const filename = item.getAttribute('data-filename');
           const icon = item.querySelector('.file-icon i');
+          
+          // Check if this is an image file
+          const isImage = isImageFile(filename);
+          
           if (icon) {
-            icon.className = getFileIcon(filename);
+            icon.className = getFileIcon(filename, isImage);
+            if (isImage) {
+              icon.parentElement.classList.add('image-icon');
+            }
           }
+        });
+        
+        // Setup hover functionality for image thumbnails
+        setupImageThumbnails();
+      }
+      
+      // Helper function to check if a file is an image
+      function isImageFile(filename) {
+        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico', '.tiff', '.tif'];
+        const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+        return imageExtensions.includes(ext);
+      }
+      
+      // Simple modal functions for image preview
+      function showImageModal(imageUrl, filename) {
+        console.log('Opening modal for:', imageUrl, filename);
+        const modal = document.getElementById('image-modal');
+        const modalImage = document.getElementById('modal-image');
+        const modalFilename = document.getElementById('modal-filename');
+        
+        modalImage.src = imageUrl;
+        modalImage.alt = filename;
+        modalFilename.textContent = filename;
+        
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+      }
+      
+      function closeImageModal() {
+        const modal = document.getElementById('image-modal');
+        modal.classList.remove('show');
+        document.body.style.overflow = ''; // Restore scrolling
+      }
+      
+      // Setup click functionality for image thumbnails
+      function setupImageThumbnails() {
+        document.querySelectorAll('.image-thumbnail').forEach(thumbnail => {
+          // Remove existing event listeners to prevent duplicates
+          const newThumbnail = thumbnail.cloneNode(true);
+          thumbnail.parentNode.replaceChild(newThumbnail, thumbnail);
+          
+          console.log('Setting up thumbnail click for:', newThumbnail);
+          
+          // Add click functionality
+          newThumbnail.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const imageUrl = this.getAttribute('data-image-url');
+            const filename = this.getAttribute('data-filename');
+            
+            console.log('Thumbnail clicked:', imageUrl, filename);
+            
+            if (imageUrl && filename) {
+              showImageModal(imageUrl, filename);
+            }
+          });
         });
       }
 
@@ -1568,6 +1823,7 @@ Start typing your shared content here...
               fileList.innerHTML = newFileList.innerHTML;
               attachDeleteEventListeners();
               updateFileIcons();
+              setupImageThumbnails(); // Add this to setup hover functionality
               updateFileCounts();
             }
           })
@@ -2088,6 +2344,134 @@ Start typing your shared content here...
         document.body.style.userSelect = '';
       }
 
+      // Clipboard paste functionality for images
+      document.addEventListener('paste', async function(e) {
+        const clipboardItems = e.clipboardData.items;
+        
+        for (let i = 0; i < clipboardItems.length; i++) {
+          const item = clipboardItems[i];
+          
+          // Check if the item is an image
+          if (item.type.indexOf('image') !== -1) {
+            e.preventDefault();
+            
+            const blob = item.getAsFile();
+            if (blob) {
+              // Check file size before processing (50MB limit)
+              const maxSize = 50 * 1024 * 1024; // 50MB in bytes
+              if (blob.size > maxSize) {
+                showNotification('❌ Image too large. Maximum size is 50MB.', 'error');
+                return;
+              }
+              
+              console.log('Processing pasted image:', {
+                type: blob.type,
+                size: blob.size,
+                sizeFormatted: formatFileSize(blob.size)
+              });
+              
+              // Convert blob to base64
+              const reader = new FileReader();
+              reader.onload = async function(event) {
+                const base64Data = event.target.result;
+                
+                console.log('Base64 data length:', base64Data.length);
+                
+                try {
+                  showNotification('📋 Uploading pasted image...', 'info');
+                  
+                  // Use root endpoint for better compatibility
+                  const pasteUrl = environmentPath ? `${environmentPath}/paste-image` : '/paste-image';
+                  
+                  const response = await fetch(pasteUrl, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      imageData: base64Data
+                    })
+                  });
+                  
+                  if (response.ok) {
+                    const result = await response.json();
+                    showNotification(`✅ Image pasted successfully as "${result.filename}"`, 'success');
+                    socket.emit("fileUpdate");
+                  } else {
+                    // Handle both JSON and HTML error responses
+                    let errorMessage = `HTTP ${response.status}`;
+                    try {
+                      const errorData = await response.json();
+                      errorMessage = errorData.error || errorMessage;
+                    } catch (jsonError) {
+                      // If response is not JSON, try to get text
+                      try {
+                        const errorText = await response.text();
+                        if (errorText.includes('413') || errorText.includes('Payload Too Large')) {
+                          errorMessage = 'Image too large. Please try a smaller image.';
+                        } else {
+                          errorMessage = `Server error (${response.status})`;
+                        }
+                      } catch (textError) {
+                        errorMessage = `Server error (${response.status})`;
+                      }
+                    }
+                    console.error('Paste image error:', errorMessage);
+                    showNotification(`❌ Failed to paste image: ${errorMessage}`, 'error');
+                  }
+                  
+                } catch (error) {
+                  console.error('Error uploading pasted image:', error);
+                  showNotification('❌ Network error while uploading image', 'error');
+                }
+              };
+              
+              reader.readAsDataURL(blob);
+            }
+            break; // Only handle the first image
+          }
+        }
+      });
+
+
+
+      // Enhanced file icon detection to show thumbnails for images
+      function getFileIcon(filename, isImage = false) {
+        const ext = filename.split('.').pop().toLowerCase();
+        
+        if (isImage) {
+          return 'fas fa-image'; // Use image icon for all images
+        }
+        
+        const iconMap = {
+          // Documents
+          'pdf': 'fas fa-file-pdf',
+          'doc': 'fas fa-file-word', 'docx': 'fas fa-file-word',
+          'xls': 'fas fa-file-excel', 'xlsx': 'fas fa-file-excel',
+          'ppt': 'fas fa-file-powerpoint', 'pptx': 'fas fa-file-powerpoint',
+          'txt': 'fas fa-file-alt', 'md': 'fas fa-file-alt',
+          
+          // Code
+          'js': 'fas fa-file-code', 'ts': 'fas fa-file-code',
+          'html': 'fas fa-file-code', 'css': 'fas fa-file-code',
+          'json': 'fas fa-file-code', 'xml': 'fas fa-file-code',
+          'py': 'fas fa-file-code', 'java': 'fas fa-file-code',
+          'cpp': 'fas fa-file-code', 'c': 'fas fa-file-code',
+          
+          // Archives
+          'zip': 'fas fa-file-archive', 'rar': 'fas fa-file-archive',
+          '7z': 'fas fa-file-archive', 'tar': 'fas fa-file-archive',
+          'gz': 'fas fa-file-archive',
+          
+          // Media
+          'mp3': 'fas fa-file-audio', 'wav': 'fas fa-file-audio',
+          'mp4': 'fas fa-file-video', 'avi': 'fas fa-file-video',
+          'mov': 'fas fa-file-video', 'wmv': 'fas fa-file-video'
+        };
+        
+        return iconMap[ext] || 'fas fa-file';
+      }
+
       // Keyboard shortcuts
       document.addEventListener('keydown', function(e) {
         // Ctrl/Cmd + U for upload
@@ -2102,6 +2486,11 @@ Start typing your shared content here...
           clearClipboard();
         }
         
+        // Ctrl/Cmd + V for paste (hint for users)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'v' && e.target === document.body) {
+          showNotification('💡 Tip: You can paste images directly anywhere on this page!', 'info');
+        }
+        
         // ESC to cancel uploads
         if (e.key === 'Escape' && activeUploads.size > 0) {
           cancelAllUploads();
@@ -2114,6 +2503,7 @@ Start typing your shared content here...
         attachDeleteEventListeners();
         updateFileCounts();
         updateFileIcons();
+        setupImageThumbnails();
       });
 
       // Initialize immediately since we're in the document
@@ -2121,6 +2511,7 @@ Start typing your shared content here...
       attachDeleteEventListeners();
       updateFileCounts();
       updateFileIcons();
+      setupImageThumbnails();
     </script>
   </body>
 </html>

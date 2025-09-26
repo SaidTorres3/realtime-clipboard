@@ -91,6 +91,13 @@ const getEnvironmentName = (req) => {
   return routePath === '' || routePath === 'upload' ? 'default' : sanitizeFilename(routePath) || 'default';
 };
 
+// Helper function to check if file is an image
+const isImageFile = (filename) => {
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico', '.tiff', '.tif'];
+  const ext = path.extname(filename).toLowerCase();
+  return imageExtensions.includes(ext);
+};
+
 const getEnvironmentUploadsDir = (environmentName, createIfNotExists = false) => {
   const envDir = path.join(uploadsDir, environmentName);
   if (createIfNotExists && !fs.existsSync(envDir)) {
@@ -208,9 +215,34 @@ const io = new SocketIoServer(server);
 
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
-app.use('/uploads', express.static(uploadsDir));
+// Configure static file serving with proper MIME types for images
+app.use('/uploads', express.static(uploadsDir, {
+  setHeaders: (res, path) => {
+    // Set proper MIME types for common image formats
+    const ext = path.toLowerCase().split('.').pop();
+    const imageMimeTypes = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg', 
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'webp': 'image/webp',
+      'svg': 'image/svg+xml',
+      'bmp': 'image/bmp',
+      'ico': 'image/x-icon',
+      'tiff': 'image/tiff',
+      'tif': 'image/tiff'
+    };
+    
+    if (imageMimeTypes[ext]) {
+      res.setHeader('Content-Type', imageMimeTypes[ext]);
+      // Add caching headers for images
+      res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year
+    }
+  }
+}));
+
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json()); // Add JSON parser for chunked upload endpoints
+app.use(express.json({ limit: '50mb' })); // Increased limit for image paste data
 app.use(bodyParser.text());
 
 // Store shared text per environment
@@ -291,8 +323,21 @@ app.get('/:environment?', (req, res) => {
           console.error('Error reading environment directory:', err);
           files = [];
         }
+        
+        // Separate images from other files and get file info
+        const fileList = files.map(file => {
+          const filePath = path.join(envUploadsDir, file);
+          const stats = fs.statSync(filePath);
+          return {
+            name: file,
+            isImage: isImageFile(file),
+            size: stats.size,
+            modified: stats.mtime
+          };
+        });
+        
         res.render('index', { 
-          files, 
+          files: fileList, 
           environmentName: sanitizedEnv,
           environmentPath: req.params.environment ? `/${req.params.environment}` : ''
         });
@@ -876,6 +921,114 @@ app.post('/upload/cleanup', (req, res) => {
   
   console.log('Manual cleanup result:', result);
   res.json(result);
+});
+
+// Backward compatibility for paste-image endpoint (root level)
+app.post('/paste-image', (req, res) => {
+  console.log('Paste image request received:', {
+    hasBody: !!req.body,
+    hasImageData: !!(req.body && req.body.imageData),
+    contentType: req.headers['content-type'],
+    bodySize: req.body ? JSON.stringify(req.body).length : 0
+  });
+
+  if (!req.body || !req.body.imageData) {
+    console.error('No image data provided in request');
+    return res.status(400).json({ error: 'No image data provided' });
+  }
+  
+  try {
+    // Parse base64 image data (format: data:image/png;base64,...)
+    const matches = req.body.imageData.match(/^data:image\/([a-zA-Z]+);base64,(.+)$/);
+    if (!matches) {
+      console.error('Invalid image data format');
+      return res.status(400).json({ error: 'Invalid image data format' });
+    }
+    
+    const imageType = matches[1];
+    const imageBuffer = Buffer.from(matches[2], 'base64');
+    
+    console.log(`Processing ${imageType} image, size: ${imageBuffer.length} bytes`);
+    
+    // Generate filename for pasted image
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
+    const filename = `pasted-image-${timestamp}-${randomSuffix}.${imageType}`;
+    
+    // Save image to default environment directory
+    const envUploadsDir = getEnvironmentUploadsDir('default', true);
+    const filePath = path.join(envUploadsDir, filename);
+    
+    fs.writeFileSync(filePath, imageBuffer);
+    console.log(`Image saved successfully as: ${filename}`);
+    
+    // Emit file update to all clients
+    io.to('default').emit('fileUpdate');
+    io.emit('fileUpdate'); // Broadcast to all for better compatibility
+    
+    res.json({ 
+      success: true, 
+      filename: filename,
+      message: 'Image pasted successfully' 
+    });
+    
+  } catch (error) {
+    console.error('Error handling pasted image:', error);
+    res.status(500).json({ error: 'Failed to process pasted image: ' + error.message });
+  }
+});
+
+// New endpoint to handle clipboard image paste for environments
+app.post('/:environment/paste-image', (req, res) => {
+  const environmentName = req.params.environment || 'default';
+  const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
+  
+  console.log('Environment paste image request received:', {
+    environment: sanitizedEnv,
+    hasBody: !!req.body,
+    hasImageData: !!(req.body && req.body.imageData),
+    contentType: req.headers['content-type']
+  });
+  
+  if (!req.body || !req.body.imageData) {
+    return res.status(400).json({ error: 'No image data provided' });
+  }
+  
+  try {
+    // Parse base64 image data (format: data:image/png;base64,...)
+    const matches = req.body.imageData.match(/^data:image\/([a-zA-Z]+);base64,(.+)$/);
+    if (!matches) {
+      return res.status(400).json({ error: 'Invalid image data format' });
+    }
+    
+    const imageType = matches[1];
+    const imageBuffer = Buffer.from(matches[2], 'base64');
+    
+    // Generate filename for pasted image
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
+    const filename = `pasted-image-${timestamp}-${randomSuffix}.${imageType}`;
+    
+    // Save image to environment directory
+    const envUploadsDir = getEnvironmentUploadsDir(sanitizedEnv, true);
+    const filePath = path.join(envUploadsDir, filename);
+    
+    fs.writeFileSync(filePath, imageBuffer);
+    
+    // Emit file update to all clients in the environment
+    io.to(sanitizedEnv).emit('fileUpdate');
+    io.emit('fileUpdate'); // Broadcast to all for better compatibility
+    
+    res.json({ 
+      success: true, 
+      filename: filename,
+      message: 'Image pasted successfully' 
+    });
+    
+  } catch (error) {
+    console.error('Error handling pasted image:', error);
+    res.status(500).json({ error: 'Failed to process pasted image: ' + error.message });
+  }
 });
 
 app.post('/:environment/upload', (req, res) => {
