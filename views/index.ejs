@@ -206,6 +206,7 @@
       }
 
       .editor-header {
+        display: block;
         background: linear-gradient(135deg, var(--darker-bg) 0%, #1e293b 100%);
         padding: 12px 32px;
         border-bottom: 1px solid var(--border-primary);
@@ -367,7 +368,6 @@
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
-        margin-bottom: 8px;
         transition: all 0.3s var(--ease-smooth);
       }
 
@@ -771,6 +771,20 @@
         .drop-zone-icon {
           font-size: 60px;
         }
+
+        .editor-wrapper::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: linear-gradient(90deg, var(--primary-blue) 0%, var(--accent-light-blue) 50%, var(--accent-cyan) 100%);
+        }
+
+        .editor-header {
+          display: none;
+        }
       }
 
       @media (max-width: 480px) {
@@ -783,7 +797,7 @@
         }
 
         .upload-area {
-          padding: 20px;
+          padding: 10px;
         }
 
         .upload-icon {
