@@ -413,6 +413,7 @@ Start typing your shared content here...
       // Application state
       let connectedUsers = 1;
       let activeUploads = new Set();
+      let canceledUploads = new Set(); // Track which uploads have been canceled
   // Track if image preview modal is currently open to prevent accidental re-uploads
   let imagePreviewOpen = false;
       
@@ -915,6 +916,7 @@ Start typing your shared content here...
         if (activeUploads.size > 0) {
           // Cancel all active uploads
           activeUploads.forEach(uploadId => {
+            canceledUploads.add(uploadId); // Mark as canceled
             // Use sendBeacon for reliable delivery during page unload
             navigator.sendBeacon(`/upload/cancel/${uploadId}`);
           });
@@ -936,6 +938,7 @@ Start typing your shared content here...
             if (document.hidden && activeUploads.size > 0) {
               console.log('Page still hidden after 5 minutes, canceling uploads...');
               activeUploads.forEach(uploadId => {
+                canceledUploads.add(uploadId); // Mark as canceled
                 fetch(`/upload/cancel/${uploadId}`, { method: 'DELETE' })
                   .catch(err => console.log('Failed to cancel upload:', err));
               });
@@ -1454,6 +1457,11 @@ Start typing your shared content here...
         if (confirmed) {
           console.log(`Canceling ${uploadCount} active uploads...`);
           
+          // Mark all active uploads as canceled BEFORE making server calls
+          activeUploads.forEach((uploadId) => {
+            canceledUploads.add(uploadId);
+          });
+          
           activeUploads.forEach(async (uploadId) => {
             try {
               await fetch(`${environmentPath}/upload/cancel/${uploadId}`, { method: 'DELETE' });
@@ -1603,20 +1611,40 @@ Start typing your shared content here...
           }, 2000);
         } catch (error) {
           console.error('Upload failed:', error);
-          progressText.textContent = "❌ Upload failed!";
-          chunkProgressSection.style.display = "none";
           
-          // Cancel any active uploads on error
-          activeUploads.forEach(uploadId => {
-            fetch(`/upload/cancel/${uploadId}`, { method: 'DELETE' })
-              .catch(err => console.log('Failed to cancel upload after error:', err));
-          });
-          activeUploads.clear();
+          // Check if this is a cancellation error - if so, don't show ugly alert
+          const isCancellationError = error.message && (
+            error.message.includes('Upload was canceled by user') ||
+            error.message.includes('Upload session not found') ||
+            error.message.includes('canceled') ||
+            (error.message.includes('Failed to upload chunk') && activeUploads.size === 0) // Chunk failure after cancellation
+          );
           
-          alert('Upload failed: ' + error.message);
-          setTimeout(() => {
-            progressText.textContent = "";
-          }, 3000);
+          // Only show alert if this is NOT a cancellation-related error
+          if (!isCancellationError) {
+            progressText.textContent = "❌ Upload failed!";
+            chunkProgressSection.style.display = "none";
+            
+            // Cancel any active uploads on error
+            activeUploads.forEach(uploadId => {
+              fetch(`/upload/cancel/${uploadId}`, { method: 'DELETE' })
+                .catch(err => console.log('Failed to cancel upload after error:', err));
+            });
+            activeUploads.clear();
+            
+            alert('Upload failed: ' + error.message);
+            setTimeout(() => {
+              progressText.textContent = "";
+            }, 3000);
+          } else {
+            // This was a cancellation - just clean up silently
+            console.log('Upload canceled by user, cleaning up silently...');
+            progressText.textContent = "Upload canceled";
+            chunkProgressSection.style.display = "none";
+            setTimeout(() => {
+              progressText.textContent = "";
+            }, 1000);
+          }
         } finally {
           setTimeout(() => {
             progressContainer.style.display = "none";
@@ -1682,6 +1710,12 @@ Start typing your shared content here...
         
         // Upload chunks sequentially with progress tracking
         for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+          // Check if upload has been canceled before processing each chunk
+          if (canceledUploads.has(uploadId)) {
+            console.log(`Upload ${uploadId} was canceled, stopping chunk upload at ${chunkIndex}/${totalChunks}`);
+            throw new Error('Upload was canceled by user');
+          }
+          
           const start = chunkIndex * chunkSize;
           const end = Math.min(start + chunkSize, file.size);
           const chunk = file.slice(start, end);
@@ -1762,6 +1796,7 @@ Start typing your shared content here...
         
         // Remove from active uploads when completed successfully
         activeUploads.delete(uploadId);
+        canceledUploads.delete(uploadId); // Also clean up cancellation tracking
         
         // Force a file update to refresh the list
         socket.emit("fileUpdate");
