@@ -672,6 +672,15 @@ readSharedTextFromFile('default');
 
 app.use(express.static(__dirname + '/views'));
 
+// Health check / ping endpoint for connection testing
+app.head('/ping', (req, res) => {
+  res.status(200).end();
+});
+
+app.get('/ping', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 // Keep backward compatibility for root route - MUST come before /:environment? route
 app.get('/files', (req, res) => {
   try {

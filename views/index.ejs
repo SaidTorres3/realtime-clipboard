@@ -491,11 +491,15 @@ Start typing your shared content here...
         }
       }
 
+  // Check initial connection state - prioritize browser offline detection
   const initialConnectionState = !navigator.onLine ? 'offline' : (socket.connected ? 'online' : 'reconnecting');
   setConnectionStatus(initialConnectionState, { silent: true, suppressNext: true });
 
       socket.on('connect', () => {
-        setConnectionStatus('online');
+        // Only set to online if browser is actually online
+        if (navigator.onLine) {
+          setConnectionStatus('online');
+        }
       });
 
       socket.on('disconnect', (reason) => {
@@ -537,6 +541,139 @@ Start typing your shared content here...
       window.addEventListener('offline', () => {
         setConnectionStatus('offline', { reason: 'Browser offline' });
       });
+
+      // Aggressive network detection for mobile devices
+      // Actually test the connection by making a request
+      async function checkRealConnection() {
+        try {
+          // Try to fetch a small resource from the same server
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 1000); // 1 second timeout
+          
+          const response = await fetch('/ping', {
+            method: 'HEAD',
+            cache: 'no-cache',
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          return response.ok;
+        } catch (error) {
+          return false;
+        }
+      }
+
+      // Check connection status every second with smarter logic
+      let isCheckingConnection = false; // Prevent overlapping checks
+      setInterval(async () => {
+        if (isCheckingConnection) {
+          return;
+        }
+        
+        const isOnline = navigator.onLine;
+        const socketConnected = socket.connected;
+        
+        // If navigator says offline, trust it immediately without testing
+        if (!isOnline && currentConnectionState !== 'offline') {
+          setConnectionStatus('offline', { reason: 'Network unavailable', silent: true });
+          return;
+        }
+        
+        // Only do expensive connection test when needed
+        const needsConnectionTest = 
+          currentConnectionState === 'offline' || // Check if we can come back online
+          !socketConnected || // Socket is down
+          currentConnectionState === 'reconnecting'; // Already reconnecting
+        
+        if (!needsConnectionTest) {
+          return;
+        }
+        
+        // Perform actual connection test
+        isCheckingConnection = true;
+        const actuallyOnline = await checkRealConnection();
+        isCheckingConnection = false;
+        
+        // If we're offline but connection is back, reconnect
+        if (currentConnectionState === 'offline' && actuallyOnline) {
+          if (!socketConnected) {
+            socket.connect();
+          } else {
+            setConnectionStatus('online', { reason: 'Connection restored', silent: true });
+          }
+          return;
+        }
+        
+        // If socket is disconnected, test actual connection
+        if (!socketConnected || currentConnectionState === 'reconnecting') {
+          if (!actuallyOnline && currentConnectionState !== 'offline') {
+            setConnectionStatus('offline', { reason: 'Cannot reach server', silent: true });
+          } else if (actuallyOnline && !socketConnected) {
+            setConnectionStatus('reconnecting', { silent: true });
+            socket.connect();
+          }
+        }
+      }, 1000); // Check every 1 second for faster detection
+
+      // Check connection when page becomes visible (mobile app switching)
+      document.addEventListener('visibilitychange', async () => {
+        if (!document.hidden) {
+          // Test actual connection
+          const actuallyOnline = await checkRealConnection();
+          
+          if (!actuallyOnline && currentConnectionStatus !== 'offline') {
+            setConnectionStatus('offline', { reason: 'Cannot reach server', silent: true });
+          } else if (actuallyOnline && currentConnectionStatus === 'offline') {
+            if (!socket.connected) {
+              socket.connect();
+            } else {
+              setConnectionStatus('online', { reason: 'Connection restored', silent: true });
+            }
+          } else if (actuallyOnline && !socket.connected) {
+            setConnectionStatus('reconnecting', { silent: true });
+            socket.connect();
+          }
+        }
+      });
+
+      // Check connection on any user interaction (for immediate feedback)
+      let lastInteractionCheck = 0;
+      const checkConnectionOnInteraction = async () => {
+        const now = Date.now();
+        // Throttle to once per second
+        if (now - lastInteractionCheck < 1000) return;
+        lastInteractionCheck = now;
+        
+        // Always do actual connection test
+        const actuallyOnline = await checkRealConnection();
+        
+        // If we're offline but connection is back, reconnect
+        if (currentConnectionState === 'offline' && actuallyOnline) {
+          if (!socket.connected) {
+            socket.connect();
+          } else {
+            setConnectionStatus('online', { reason: 'Connection restored', silent: true });
+          }
+          return;
+        }
+        
+        // First check navigator.onLine
+        if (!navigator.onLine && currentConnectionState !== 'offline') {
+          setConnectionStatus('offline', { reason: 'Network unavailable', silent: true });
+          return;
+        }
+        
+        if (!actuallyOnline && currentConnectionState !== 'offline') {
+          setConnectionStatus('offline', { reason: 'Cannot reach server', silent: true });
+        } else if (actuallyOnline && !socket.connected && currentConnectionState !== 'reconnecting') {
+          setConnectionStatus('reconnecting', { silent: true });
+        }
+      };
+
+      // Add interaction listeners
+      document.addEventListener('click', checkConnectionOnInteraction);
+      document.addEventListener('touchstart', checkConnectionOnInteraction);
+      textarea.addEventListener('focus', checkConnectionOnInteraction);
 
       // Get current environment from URL
       const currentPath = window.location.pathname;

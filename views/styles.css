@@ -171,12 +171,13 @@ body {
 }
 
 /* Change editor wrapper color based on connection status */
-body[data-connection-status="offline"] .editor-wrapper::before {
-  background: linear-gradient(90deg, #dc2626 0%, #ef4444 50%, #f87171 100%);
+body[data-connection-status="online"] .editor-wrapper::before {
+  background: linear-gradient(90deg, var(--success-green) 0%, #10b981 50%, #34d399 100%);
 }
 
-body[data-connection-status="reconnecting"] .editor-wrapper::before {
-  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #fcd34d 100%);
+body[data-connection-status="reconnecting"] .editor-wrapper::before,
+body[data-connection-status="offline"] .editor-wrapper::before {
+  background: linear-gradient(90deg, #dc2626 0%, #ef4444 50%, #f87171 100%);
 }
 
 .editor-header {
@@ -237,16 +238,7 @@ body[data-connection-status="reconnecting"] .editor-wrapper::before {
   --status-dot-animation: pulse 2s infinite;
 }
 
-.connection-status.reconnecting {
-  --status-color-start : var(--warning-amber);
-  --status-color-end   : #fbbf24;
-  --status-border-color: rgba(245, 158, 11, 0.4);
-  --status-dot-color   : var(--warning-amber);
-  --status-dot-shadow  : rgba(245, 158, 11, 0.55);
-  --status-dot-glow    : rgba(245, 158, 11, 0.25);
-  --status-dot-animation: pulse 1.2s infinite;
-}
-
+.connection-status.reconnecting,
 .connection-status.offline {
   --status-color-start : #f87171;
   --status-color-end   : var(--danger-blue);
@@ -269,6 +261,7 @@ body[data-connection-status="reconnecting"] .editor-wrapper::before {
   transition   : background 0.3s var(--ease-smooth), box-shadow 0.3s var(--ease-smooth), opacity 0.3s var(--ease-smooth);
 }
 
+.connection-status.reconnecting .status-dot,
 .connection-status.offline .status-dot {
   opacity: 0.7;
 }
@@ -955,12 +948,13 @@ body[data-connection-status="reconnecting"] .editor-wrapper::before {
   }
 
   /* Change editor wrapper color based on connection status on mobile */
-  body[data-connection-status="offline"] .editor-wrapper::after {
-    background: linear-gradient(90deg, #dc2626 0%, #ef4444 50%, #f87171 100%);
+  body[data-connection-status="online"] .editor-wrapper::after {
+    background: linear-gradient(90deg, var(--success-green) 0%, #10b981 50%, #34d399 100%);
   }
 
-  body[data-connection-status="reconnecting"] .editor-wrapper::after {
-    background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #fcd34d 100%);
+  body[data-connection-status="reconnecting"] .editor-wrapper::after,
+  body[data-connection-status="offline"] .editor-wrapper::after {
+    background: linear-gradient(90deg, #dc2626 0%, #ef4444 50%, #f87171 100%);
   }
 
   .editor-header {
