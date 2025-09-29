@@ -1,1 +1,0 @@
-I am test string from test/test-file.txt!!!
