@@ -139,8 +139,31 @@ const hasEnvironmentContent = (environmentName) => {
   let hasFiles = false;
   if (fs.existsSync(envDir)) {
     try {
-      const files = fs.readdirSync(envDir);
-      hasFiles = files.length > 0;
+      const entries = fs.readdirSync(envDir);
+      for (const entry of entries) {
+        if (entry === '.versions') {
+          continue;
+        }
+
+        const entryPath = path.join(envDir, entry);
+        try {
+          const stats = fs.statSync(entryPath);
+          if (stats.isFile()) {
+            hasFiles = true;
+            break;
+          }
+
+          if (stats.isDirectory()) {
+            const nestedEntries = fs.readdirSync(entryPath);
+            if (nestedEntries.length > 0) {
+              hasFiles = true;
+              break;
+            }
+          }
+        } catch (statErr) {
+          console.error('Error inspecting environment entry:', statErr);
+        }
+      }
     } catch (err) {
       console.error('Error reading environment directory:', err);
     }
@@ -166,8 +189,92 @@ const hasEnvironmentContent = (environmentName) => {
   return hasFiles || hasText;
 };
 
+const cleanupOrphanedVersionFolders = (environmentName) => {
+  const envDir = getEnvironmentUploadsDir(environmentName, false);
+  const versionsDir = getVersionsDir(environmentName);
+
+  if (!fs.existsSync(versionsDir)) {
+    return 0;
+  }
+
+  const existingFiles = new Set();
+
+  if (fs.existsSync(envDir)) {
+    try {
+      const entries = fs.readdirSync(envDir);
+      for (const entry of entries) {
+        if (entry.startsWith('.')) {
+          continue;
+        }
+
+        const entryPath = path.join(envDir, entry);
+        try {
+          const stats = fs.statSync(entryPath);
+          if (stats.isFile()) {
+            existingFiles.add(entry);
+          }
+        } catch (error) {
+          console.error('Error inspecting environment file during version cleanup:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error reading environment directory during version cleanup:', error);
+    }
+  }
+
+  let removedCount = 0;
+
+  try {
+    const versionFolders = fs.readdirSync(versionsDir);
+    for (const folderName of versionFolders) {
+      const folderPath = path.join(versionsDir, folderName);
+
+      let shouldRemove = false;
+      try {
+        const stats = fs.statSync(folderPath);
+        if (stats.isDirectory()) {
+          const correspondingFilePath = path.join(envDir, folderName);
+          shouldRemove = !existingFiles.has(folderName) && !fs.existsSync(correspondingFilePath);
+        }
+      } catch (error) {
+        shouldRemove = true;
+      }
+
+      if (shouldRemove) {
+        try {
+          if (typeof fs.rmSync === 'function') {
+            fs.rmSync(folderPath, { recursive: true, force: true });
+          } else {
+            fs.rmdirSync(folderPath, { recursive: true });
+          }
+          removedCount++;
+        } catch (error) {
+          console.error(`Error deleting orphaned version folder ${folderPath}:`, error.message);
+        }
+      }
+    }
+
+    if (fs.existsSync(versionsDir)) {
+      const remaining = fs.readdirSync(versionsDir);
+      if (remaining.length === 0) {
+        fs.rmdirSync(versionsDir);
+      }
+    }
+  } catch (error) {
+    console.error('Error during orphaned version cleanup:', error.message);
+  }
+
+  if (removedCount > 0) {
+    console.log(`Removed ${removedCount} orphaned version folder${removedCount !== 1 ? 's' : ''} for environment ${environmentName}`);
+  }
+
+  return removedCount;
+};
+
 // Clean up empty environment directories and text files
 const cleanupEmptyEnvironment = (environmentName) => {
+  cleanupOrphanedVersionFolders(environmentName);
+
   // Don't clean up the default environment
   if (environmentName === 'default') {
     return;
@@ -1711,6 +1818,7 @@ app.delete('/:environment/files/:filename', (req, res) => {
       res.status(200).send('File deleted successfully (all versions removed)\n');
     }
     
+    cleanupOrphanedVersionFolders(sanitizedEnv);
     // Clean up empty environment after file deletion
     setTimeout(() => cleanupEmptyEnvironment(sanitizedEnv), 1000);
   } catch (error) {
@@ -1757,6 +1865,8 @@ app.delete('/files/:filename', (req, res) => {
       res.status(200).send('File deleted successfully (all versions removed)\n');
     }
     
+    cleanupOrphanedVersionFolders('default');
+
     // Note: Don't cleanup default environment automatically
   } catch (error) {
     console.error('Error deleting file:', error);
@@ -2113,7 +2223,9 @@ const cleanupAllEmptyEnvironments = () => {
     try {
       const environments = fs.readdirSync(uploadsDir);
       environments.forEach(env => {
-        if (env !== 'default') { // Never cleanup default
+        if (env === 'default') {
+          cleanupOrphanedVersionFolders(env);
+        } else {
           cleanupEmptyEnvironment(env);
         }
       });
