@@ -1,0 +1,60 @@
+version: 2.1
+
+jobs:
+  test:
+    # Use a Docker executor with Node.js
+    docker:
+      - image: cimg/node:20.11.0
+    
+    # Set working directory
+    working_directory: ~/realtime-clipboard
+    
+    steps:
+      # Check out the code
+      - checkout
+      
+      # Restore cached dependencies if available
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "package.json" }}
+            # Fallback to using the latest cache if no exact match is found
+            - v1-dependencies-
+      
+      # Install dependencies
+      - run:
+          name: Install dependencies
+          command: npm install
+      
+      # Save dependencies to cache
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-{{ checksum "package.json" }}
+      
+      # Create necessary directories for tests
+      - run:
+          name: Create test directories
+          command: |
+            mkdir -p data/sharedText
+            mkdir -p data/uploads/default
+            mkdir -p temp
+            echo "Default shared text" > data/sharedText/default.txt
+      
+      # Run tests
+      - run:
+          name: Run tests
+          command: npm test
+      
+      # Store test results (optional, for CircleCI UI)
+      - store_test_results:
+          path: test-results
+      
+      # Store artifacts (optional)
+      - store_artifacts:
+          path: test-results
+          destination: test-results
+
+workflows:
+  test-workflow:
+    jobs:
+      - test
