@@ -2221,8 +2221,8 @@ setTimeout(cleanupUploadSessions, 1000);
 
 // Periodic cleanup of empty environments (every 5 minutes)
 const cleanupAllEmptyEnvironments = () => {
-  console.log('Running periodic cleanup of empty environments...');
-  
+  // console.log('Running periodic cleanup of empty environments...');
+
   // Check uploads directory for empty environment folders
   if (fs.existsSync(uploadsDir)) {
     try {
