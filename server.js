@@ -21,13 +21,18 @@ const args = minimist(process.argv.slice(2));
 const host = args.a || process.env.HOST || '0.0.0.0';
 const port = args.p || process.env.PORT || 8088;
 
-const uploadsDir = path.join(__dirname, 'uploads');
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir);
+}
+
+const uploadsDir = path.join(dataDir, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
 }
 
 // Create shared text directory
-const sharedTextDir = path.join(__dirname, 'sharedText');
+const sharedTextDir = path.join(dataDir, 'sharedText');
 if (!fs.existsSync(sharedTextDir)) {
   fs.mkdirSync(sharedTextDir);
 }
