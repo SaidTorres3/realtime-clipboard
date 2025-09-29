@@ -292,6 +292,7 @@ Start typing your shared content here...
 💡 Tips:
 • Use Ctrl/Cmd + A to select all text
 • Drag files directly into the sidebar to upload
+• Hold Alt while clicking Delete to skip confirmation
 • Content is automatically saved and synced"
             ></textarea>
           </div>
@@ -1931,56 +1932,64 @@ Start typing your shared content here...
       }
 
       // Enhanced delete event listeners with better UX
+      // Handler function for delete button clicks
+      async function handleDeleteClick(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const button = e.currentTarget;
+        const fileItem = button.closest("[data-filename]");
+        const filename = fileItem.getAttribute("data-filename");
+
+        // Skip confirmation if Alt key is pressed
+        const confirmed = e.altKey ? true : await showConfirm(
+          `This will permanently delete "${filename}".\n\nThis action cannot be undone.`,
+          'Delete File',
+          'danger'
+        );
+        
+        if (confirmed) {
+          // Show loading state
+          const originalHTML = button.innerHTML;
+          button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+          button.disabled = true;
+          
+          fetch(`${environmentPath}/files/${encodeURIComponent(filename)}`, {
+            method: "DELETE",
+          })
+          .then((response) => {
+            if (response.ok) {
+              // Simple fade out for VNC compatibility
+              fileItem.style.opacity = '0.3';
+              setTimeout(() => {
+                fileItem.remove();
+                updateFileCounts();
+              }, 300);
+              
+              socket.emit("fileUpdate");
+              showNotification(`"${filename}" deleted successfully`, 'success');
+            } else {
+              button.innerHTML = originalHTML;
+              button.disabled = false;
+              showNotification(`Failed to delete "${filename}"`, 'error');
+            }
+          })
+          .catch((error) => {
+            console.error("Delete error:", error);
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+            showNotification(`Error deleting "${filename}"`, 'error');
+          });
+        }
+      }
+
       function attachDeleteEventListeners() {
         const deleteButtons = document.querySelectorAll(".delete-button");
         deleteButtons.forEach((button) => {
-          button.addEventListener("click", async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const fileItem = button.closest("[data-filename]");
-            const filename = fileItem.getAttribute("data-filename");
-
-            const confirmed = await showConfirm(
-              `This will permanently delete "${filename}".\n\nThis action cannot be undone.`,
-              'Delete File',
-              'danger'
-            );
-            
-            if (confirmed) {
-              // Show loading state
-              const originalHTML = button.innerHTML;
-              button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-              button.disabled = true;
-              
-              fetch(`${environmentPath}/files/${filename}`, {
-                method: "DELETE",
-              })
-              .then((response) => {
-                if (response.ok) {
-                  // Simple fade out for VNC compatibility
-                  fileItem.style.opacity = '0.3';
-                  setTimeout(() => {
-                    fileItem.remove();
-                    updateFileCounts();
-                  }, 300);
-                  
-                  socket.emit("fileUpdate");
-                  showNotification(`"${filename}" deleted successfully`, 'success');
-                } else {
-                  button.innerHTML = originalHTML;
-                  button.disabled = false;
-                  showNotification(`Failed to delete "${filename}"`, 'error');
-                }
-              })
-              .catch((error) => {
-                console.error("Delete error:", error);
-                button.innerHTML = originalHTML;
-                button.disabled = false;
-                showNotification(`Error deleting "${filename}"`, 'error');
-              });
-            }
-          });
+          // Remove any existing listener first to prevent duplicates
+          button.removeEventListener("click", handleDeleteClick);
+          // Add the listener
+          button.addEventListener("click", handleDeleteClick);
         });
       }
 
