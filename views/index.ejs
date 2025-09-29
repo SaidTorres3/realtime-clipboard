@@ -470,6 +470,9 @@ Start typing your shared content here...
         statusDotEl.classList.add(targetState);
         connectionStatusEl.setAttribute('data-status', targetState);
 
+        // Add connection status to body for styling the editor wrapper
+        document.body.setAttribute('data-connection-status', targetState);
+
         statusLabelEl.textContent = text || config.text;
 
         const reasonText = formatConnectionReason(reason);
