@@ -65,7 +65,7 @@ body {
 .sidebar {
   width         : 400px;
   min-width     : 350px;
-  max-width     : 520px;
+  max-width     : 1200px;
   background    : var(--sidebar-bg);
   border-right  : 1px solid var(--border-primary);
   position      : relative;
@@ -916,8 +916,10 @@ body[data-connection-status="reconnecting"] .editor-wrapper::before {
   }
 
   .file-list {
-    max-height: calc(40vh - 120px);
-    flex-grow: 1;
+    /* Remove fixed max-height to allow adaptation to dynamic sidebar height */
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
   }
 
   .editor-wrapper {
@@ -1014,7 +1016,10 @@ body[data-connection-status="reconnecting"] .editor-wrapper::before {
   }
 
   .file-list {
-    max-height: calc(40vh - 110px);
+    /* Remove fixed max-height to allow adaptation to dynamic sidebar height */
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
   }
 
   .progress-card {
