@@ -761,6 +761,7 @@ body {
     order       : 2;
     border-right: none;
     border-top  : 3px solid var(--primary-blue);
+    padding     : 16px;
   }
 
   .content-area {
@@ -777,11 +778,61 @@ body {
   }
 
   .sidebar-content {
-    padding: 20px;
+    padding: 0;
+  }
+
+  /* Compact mobile upload section */
+  .sidebar-section {
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: 16px;
+    margin-bottom: 12px;
+    gap: 8px;
+  }
+
+  /* Make upload area compact on mobile */
+  .upload-area {
+    padding: 12px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .upload-icon {
+    font-size: 20px;
+    margin: 0;
+  }
+
+  .upload-text {
+    font-size: 12px;
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  .upload-subtext {
+    display: none;
+  }
+
+  /* Hide inline progress on mobile or make it more compact */
+  #inline-progress-container {
+    margin-top: 12px !important;
+  }
+
+  .progress-card {
+    padding: 12px;
+  }
+
+  .progress-section {
+    margin-bottom: 12px;
   }
 
   .file-list {
-    max-height: 25vh;
+    max-height: calc(40vh - 120px);
+    flex-grow: 1;
   }
 
   .editor-wrapper {
@@ -815,27 +866,69 @@ body {
   .editor-header {
     display: none;
   }
+
+  /* Make environment badge more compact */
+  .environment-badge {
+    padding: 8px 10px;
+    margin-bottom: 12px;
+  }
+
+  .environment-label {
+    font-size: 10px;
+    margin-bottom: 3px;
+  }
+
+  .environment-name {
+    font-size: 13px;
+  }
 }
 
 @media (max-width: 480px) {
   .sidebar-content {
-    padding: 15px;
+    padding: 0;
+  }
+
+  .sidebar {
+    padding: 12px;
   }
 
   .main-editor {
     padding: 10px;
   }
 
+  /* Ultra-compact upload area for small mobile screens */
   .upload-area {
-    padding: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
   }
 
   .upload-icon {
-    font-size: 36px;
+    font-size: 18px;
+  }
+
+  .upload-text {
+    font-size: 11px;
+  }
+
+  .section-title {
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+
+  .file-list {
+    max-height: calc(40vh - 110px);
   }
 
   .progress-card {
-    padding: 12px;
+    padding: 10px;
+  }
+
+  .progress-label {
+    font-size: 12px;
+  }
+
+  .progress-percentage {
+    font-size: 11px;
   }
 
   .confirm-dialog {
