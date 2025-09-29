@@ -38,7 +38,7 @@ if (!fs.existsSync(sharedTextDir)) {
 }
 
 // Create temporary directory for chunked uploads
-const tempDir = path.join(__dirname, 'temp');
+const tempDir = path.join(dataDir, 'temp');
 if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir);
 }

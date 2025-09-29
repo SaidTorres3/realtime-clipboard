@@ -50,7 +50,7 @@ describe('chrome', () => {
       .expect(200, done);
   });
 
-  const uploadsDir = path.join(__dirname, '../uploads/default');
+  const uploadsDir = path.join(__dirname, '../data/uploads/default');
 
   beforeEach(async () => {
     // Clean up uploads directory if it exists and has files
@@ -134,8 +134,8 @@ describe('chrome', () => {
 
 describe('File Upload Tests', () => {
   const chromeUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
-  const uploadsDir = path.join(__dirname, '../uploads/default');
-  const tempDir = path.join(__dirname, '../temp');
+  const uploadsDir = path.join(__dirname, '../data/uploads/default');
+  const tempDir = path.join(__dirname, '../data/temp');
 
   beforeEach(async () => {
     // Clean uploads directory
@@ -762,7 +762,7 @@ describe('curl', () => {
       });
   });
 
-  const uploadsDir = path.join(__dirname, '../uploads/default');
+  const uploadsDir = path.join(__dirname, '../data/uploads/default');
 
   beforeEach(async () => {
     // Clean uploads directory if it exists and has files
