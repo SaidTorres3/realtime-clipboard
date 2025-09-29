@@ -1984,15 +1984,25 @@ Start typing your shared content here...
         });
       }
 
-      // Enhanced resizer with better performance for VNC
+      // Enhanced resizer with better performance for VNC and touch support for mobile
       let isResizing = false;
       
+      // Mouse events for desktop
       resizer.addEventListener("mousedown", function (e) {
         e.preventDefault();
         isResizing = true;
         document.addEventListener("mousemove", resize);
         document.addEventListener("mouseup", stopResize);
         document.body.style.cursor = 'ew-resize';
+        document.body.style.userSelect = 'none';
+      });
+
+      // Touch events for mobile
+      resizer.addEventListener("touchstart", function (e) {
+        e.preventDefault();
+        isResizing = true;
+        document.addEventListener("touchmove", resizeTouch, { passive: false });
+        document.addEventListener("touchend", stopResizeTouch);
         document.body.style.userSelect = 'none';
       });
 
@@ -2005,11 +2015,45 @@ Start typing your shared content here...
         sidebar.style.width = newWidth + "px";
       }
 
+      function resizeTouch(e) {
+        if (!isResizing) return;
+        e.preventDefault();
+        
+        const touch = e.touches[0];
+        const minHeight = window.innerHeight * 0.15; // Minimum 15% of viewport height
+        const maxHeight = window.innerHeight * 0.85; // Maximum 85% of viewport height
+        
+        // Calculate height from the touch position
+        // Since sidebar is at the bottom, we need to calculate from bottom to touch point
+        const touchY = touch.clientY;
+        const newHeight = Math.max(minHeight, Math.min(maxHeight, window.innerHeight - touchY));
+        
+        sidebar.style.height = newHeight + "px";
+        sidebar.style.maxHeight = newHeight + "px";
+        sidebar.style.minHeight = newHeight + "px";
+        
+        // Update content area height accordingly
+        const contentArea = document.querySelector('.content-area');
+        if (contentArea) {
+          const contentHeight = window.innerHeight - newHeight;
+          contentArea.style.height = contentHeight + "px";
+          contentArea.style.maxHeight = contentHeight + "px";
+          contentArea.style.minHeight = contentHeight + "px";
+        }
+      }
+
       function stopResize() {
         isResizing = false;
         document.removeEventListener("mousemove", resize);
         document.removeEventListener("mouseup", stopResize);
         document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+
+      function stopResizeTouch() {
+        isResizing = false;
+        document.removeEventListener("touchmove", resizeTouch);
+        document.removeEventListener("touchend", stopResizeTouch);
         document.body.style.userSelect = '';
       }
 

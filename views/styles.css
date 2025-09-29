@@ -772,6 +772,44 @@ body {
     border-top  : 3px solid var(--primary-blue);
     padding     : 16px;
     flex-shrink : 0;
+    position    : relative;
+  }
+
+  /* Make resizer horizontal and more touch-friendly on mobile */
+  .resizer {
+    display: block !important;
+    width: 100%;
+    height: 20px;
+    background: linear-gradient(180deg, transparent 0%, var(--primary-blue) 50%, transparent 100%);
+    cursor: ns-resize;
+    position: absolute;
+    top: -10px;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    opacity: 0.8;
+    touch-action: none;
+  }
+
+  .resizer:hover,
+  .resizer:active {
+    background: linear-gradient(180deg, transparent 0%, var(--primary-dark-blue) 50%, transparent 100%);
+    opacity: 1;
+    box-shadow: 0 0 15px rgba(37, 99, 235, 0.4);
+  }
+
+  /* Add visual indicator for resizer */
+  .resizer::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 4px;
+    background: var(--primary-blue);
+    border-radius: 2px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   }
 
   .content-area {
