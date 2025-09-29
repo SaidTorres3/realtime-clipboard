@@ -217,28 +217,74 @@ body {
 }
 
 .connection-status {
+  --status-color-start : var(--success-green);
+  --status-color-end   : #10b981;
+  --status-border-color: rgba(16, 185, 129, 0.3);
+  --status-dot-color   : var(--success-green);
+  --status-dot-shadow  : rgba(16, 185, 129, 0.6);
+  --status-dot-glow    : rgba(16, 185, 129, 0.3);
+  --status-dot-animation: pulse 2s infinite;
   display                : flex;
   align-items            : center;
   gap                    : 10px;
-  background             : linear-gradient(135deg, var(--success-green), #10b981);
+  background             : linear-gradient(135deg, var(--status-color-start), var(--status-color-end));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip        : text;
   font-size              : 14px;
   font-weight            : 600;
   padding                : 8px 16px;
-  border                 : 1px solid rgba(16, 185, 129, 0.3);
+  border                 : 1px solid var(--status-border-color);
   border-radius          : 20px;
   backdrop-filter        : blur(10px);
+  color                  : var(--text-primary);
+  transition             : background 0.3s var(--ease-smooth), border-color 0.3s var(--ease-smooth), transform 0.3s var(--ease-smooth), color 0.3s var(--ease-smooth);
+}
+
+.connection-status.online {
+  --status-color-start : var(--success-green);
+  --status-color-end   : #10b981;
+  --status-border-color: rgba(16, 185, 129, 0.3);
+  --status-dot-color   : var(--success-green);
+  --status-dot-shadow  : rgba(16, 185, 129, 0.6);
+  --status-dot-glow    : rgba(16, 185, 129, 0.3);
+  --status-dot-animation: pulse 2s infinite;
+}
+
+.connection-status.reconnecting {
+  --status-color-start : var(--warning-amber);
+  --status-color-end   : #fbbf24;
+  --status-border-color: rgba(245, 158, 11, 0.4);
+  --status-dot-color   : var(--warning-amber);
+  --status-dot-shadow  : rgba(245, 158, 11, 0.55);
+  --status-dot-glow    : rgba(245, 158, 11, 0.25);
+  --status-dot-animation: pulse 1.2s infinite;
+}
+
+.connection-status.offline {
+  --status-color-start : #f87171;
+  --status-color-end   : var(--danger-blue);
+  --status-border-color: rgba(220, 38, 38, 0.35);
+  --status-dot-color   : var(--danger-blue);
+  --status-dot-shadow  : rgba(220, 38, 38, 0.55);
+  --status-dot-glow    : rgba(220, 38, 38, 0.2);
+  --status-dot-animation: none;
+  -webkit-text-fill-color: rgba(248, 250, 252, 0.9);
+  color                  : rgba(248, 250, 252, 0.9);
 }
 
 .status-dot {
   width        : 10px;
   height       : 10px;
-  background   : radial-gradient(circle, var(--success-green), #10b981);
+  background   : radial-gradient(circle, var(--status-dot-color), var(--status-dot-color));
   border-radius: 50%;
-  box-shadow   : 0 0 10px rgba(16, 185, 129, 0.6), 0 0 20px rgba(16, 185, 129, 0.3);
-  animation    : pulse 2s infinite;
+  box-shadow   : 0 0 10px var(--status-dot-shadow), 0 0 20px var(--status-dot-glow);
+  animation    : var(--status-dot-animation);
+  transition   : background 0.3s var(--ease-smooth), box-shadow 0.3s var(--ease-smooth), opacity 0.3s var(--ease-smooth);
+}
+
+.connection-status.offline .status-dot {
+  opacity: 0.7;
 }
 
 @keyframes pulse {

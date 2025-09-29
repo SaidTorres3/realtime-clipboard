@@ -404,6 +404,134 @@ Start typing your shared content here...
       const fileCount = document.getElementById("file-count");
       const filesCount = document.getElementById("files-count");
       const usersCount = document.getElementById("users-count");
+      const connectionStatusEl = document.querySelector('.connection-status');
+      const statusDotEl = connectionStatusEl ? connectionStatusEl.querySelector('.status-dot') : null;
+      const statusLabelEl = connectionStatusEl ? connectionStatusEl.querySelector('span') : null;
+      const STATUS_CLASSES = ['online', 'offline', 'reconnecting'];
+      const CONNECTION_CONFIG = {
+        online: {
+          text: 'Connected',
+          title: 'Connected to RealTime Clipboard.'
+        },
+        reconnecting: {
+          text: 'Reconnecting…',
+          title: 'Attempting to restore the connection…'
+        },
+        offline: {
+          text: 'Offline',
+          title: 'No network connection detected.'
+        }
+      };
+      let currentConnectionState = null;
+      let skipNextConnectionNotification = false;
+
+      if (connectionStatusEl) {
+        connectionStatusEl.setAttribute('role', 'status');
+        connectionStatusEl.setAttribute('aria-live', 'polite');
+        connectionStatusEl.setAttribute('aria-atomic', 'true');
+      }
+
+      function formatConnectionReason(value) {
+        if (!value) return '';
+        if (typeof value === 'string') return value;
+        if (typeof value === 'object') {
+          if (value.message) return value.message;
+          if (value.description) return value.description;
+          if (value.type) return value.type;
+          try {
+            return JSON.stringify(value);
+          } catch (err) {
+            return '';
+          }
+        }
+        return String(value);
+      }
+
+      function setConnectionStatus(state, options = {}) {
+        if (!connectionStatusEl || !statusDotEl || !statusLabelEl) {
+          return;
+        }
+
+        const { text, reason, silent = false, suppressNext = false } = options;
+        const targetState = STATUS_CLASSES.includes(state) ? state : 'online';
+        const previousState = currentConnectionState;
+        const config = CONNECTION_CONFIG[targetState] || CONNECTION_CONFIG.online;
+        currentConnectionState = targetState;
+        const suppressNotificationsNow = silent || skipNextConnectionNotification;
+        skipNextConnectionNotification = suppressNext;
+
+        STATUS_CLASSES.forEach(cls => {
+          connectionStatusEl.classList.remove(cls);
+          statusDotEl.classList.remove(cls);
+        });
+
+        connectionStatusEl.classList.add(targetState);
+        statusDotEl.classList.add(targetState);
+        connectionStatusEl.setAttribute('data-status', targetState);
+
+        statusLabelEl.textContent = text || config.text;
+
+        const reasonText = formatConnectionReason(reason);
+        const title = reasonText ? `${config.title} (${reasonText})` : config.title;
+        connectionStatusEl.title = title;
+
+        if (suppressNotificationsNow) {
+          return;
+        }
+
+        if (targetState === 'offline' && previousState !== 'offline') {
+          showNotification("⚠️ Connection lost. Changes will sync when you're back online.", 'warning');
+        } else if (targetState === 'online' && previousState && previousState !== 'online') {
+          showNotification('✅ Reconnected to RealTime Clipboard.', 'success');
+        }
+      }
+
+  const initialConnectionState = !navigator.onLine ? 'offline' : (socket.connected ? 'online' : 'reconnecting');
+  setConnectionStatus(initialConnectionState, { silent: true, suppressNext: true });
+
+      socket.on('connect', () => {
+        setConnectionStatus('online');
+      });
+
+      socket.on('disconnect', (reason) => {
+        const state = navigator.onLine ? 'reconnecting' : 'offline';
+        setConnectionStatus(state, { reason });
+      });
+
+      socket.on('connect_error', (error) => {
+        const state = navigator.onLine ? 'reconnecting' : 'offline';
+        setConnectionStatus(state, { reason: error });
+      });
+
+      if (socket.io) {
+        socket.io.on('reconnect_attempt', (attempt) => {
+          setConnectionStatus('reconnecting', { reason: `Attempt ${attempt}`, silent: true });
+        });
+
+        socket.io.on('reconnect', () => {
+          setConnectionStatus('online');
+        });
+
+        socket.io.on('reconnect_error', (error) => {
+          const state = navigator.onLine ? 'reconnecting' : 'offline';
+          setConnectionStatus(state, { reason: error, silent: true });
+        });
+
+        socket.io.on('reconnect_failed', () => {
+          setConnectionStatus('offline', { reason: 'Unable to reach server' });
+        });
+      }
+
+      window.addEventListener('online', () => {
+        if (socket.disconnected) {
+          socket.connect();
+        }
+        setConnectionStatus(socket.connected ? 'online' : 'reconnecting', { silent: true });
+      });
+
+      window.addEventListener('offline', () => {
+        setConnectionStatus('offline', { reason: 'Browser offline' });
+      });
 
       // Get current environment from URL
       const currentPath = window.location.pathname;
