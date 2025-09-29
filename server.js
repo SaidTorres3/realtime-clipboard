@@ -667,6 +667,44 @@ readSharedTextFromFile('default');
 
 app.use(express.static(__dirname + '/views'));
 
+// Keep backward compatibility for root route - MUST come before /:environment? route
+app.get('/files', (req, res) => {
+  try {
+    const versionedFiles = getAllVersionedFiles('default');
+    
+    if (req.query.json) {
+      if (req.query.versions === 'true') {
+        // Return detailed version information
+        res.json(versionedFiles);
+      } else {
+        // Return simple file list (just names)
+        const fileNames = versionedFiles.map(file => file.originalFileName);
+        res.json(fileNames);
+      }
+    } else {
+      // Text format for curl/wget compatibility
+      if (req.query.versions === 'true') {
+        // Show version information in text format
+        const output = versionedFiles.map(file => 
+          `${file.originalFileName} (${file.totalVersions} version${file.totalVersions !== 1 ? 's' : ''})`
+        ).join('\n');
+        res.send(output + '\n');
+      } else {
+        // Simple file list
+        const fileNames = versionedFiles.map(file => file.originalFileName);
+        res.send(fileNames.join('\n') + '\n');
+      }
+    }
+  } catch (error) {
+    console.error('Error listing files:', error);
+    if (req.query.json) {
+      res.status(500).json({ error: 'Failed to list files' });
+    } else {
+      res.status(500).send('Error listing files\n');
+    }
+  }
+});
+
 // Dynamic route handler for environments
 app.get('/:environment?', (req, res) => {
   const environmentName = req.params.environment || 'default';
@@ -720,44 +758,6 @@ app.get('/:environment/files', (req, res) => {
   
   try {
     const versionedFiles = getAllVersionedFiles(sanitizedEnv);
-    
-    if (req.query.json) {
-      if (req.query.versions === 'true') {
-        // Return detailed version information
-        res.json(versionedFiles);
-      } else {
-        // Return simple file list (just names)
-        const fileNames = versionedFiles.map(file => file.originalFileName);
-        res.json(fileNames);
-      }
-    } else {
-      // Text format for curl/wget compatibility
-      if (req.query.versions === 'true') {
-        // Show version information in text format
-        const output = versionedFiles.map(file => 
-          `${file.originalFileName} (${file.totalVersions} version${file.totalVersions !== 1 ? 's' : ''})`
-        ).join('\n');
-        res.send(output + '\n');
-      } else {
-        // Simple file list
-        const fileNames = versionedFiles.map(file => file.originalFileName);
-        res.send(fileNames.join('\n') + '\n');
-      }
-    }
-  } catch (error) {
-    console.error('Error listing files:', error);
-    if (req.query.json) {
-      res.status(500).json({ error: 'Failed to list files' });
-    } else {
-      res.status(500).send('Error listing files\n');
-    }
-  }
-});
-
-// Keep backward compatibility for root route
-app.get('/files', (req, res) => {
-  try {
-    const versionedFiles = getAllVersionedFiles('default');
     
     if (req.query.json) {
       if (req.query.versions === 'true') {
