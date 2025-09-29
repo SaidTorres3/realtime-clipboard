@@ -70,7 +70,7 @@ body {
   border-right  : 1px solid var(--border-primary);
   position      : relative;
   height        : 100vh;
-  overflow-y    : auto;
+  overflow-y    : hidden;
   overflow-x    : hidden;
   box-shadow    : var(--shadow-strong);
   display       : flex;
@@ -87,30 +87,6 @@ body {
   height    : 100%;
   background: linear-gradient(180deg, var(--primary-blue) 0%, var(--accent-navy) 100%);
   box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
-}
-
-/* Enhanced Scrollbar Design */
-.sidebar::-webkit-scrollbar {
-  width: 12px;
-}
-
-.sidebar::-webkit-scrollbar-track {
-  background   : var(--darker-bg);
-  border-radius: 6px;
-  margin       : 4px;
-}
-
-.sidebar::-webkit-scrollbar-thumb {
-  background   : linear-gradient(180deg, var(--primary-blue), var(--accent-navy));
-  border-radius: 6px;
-  border       : 2px solid var(--darker-bg);
-  box-shadow   : inset 0 0 6px rgba(0, 0, 0, 0.3);
-  transition   : all 0.3s var(--ease-smooth);
-}
-
-.sidebar::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, var(--primary-dark-blue), var(--primary-blue));
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
 .resizer {
@@ -340,6 +316,7 @@ body[data-connection-status="reconnecting"] .editor-wrapper::before {
   display       : flex;
   flex-direction: column;
   max-width     : 100%;
+  min-height    : 0;
 }
 
 .sidebar-section {
@@ -347,6 +324,16 @@ body[data-connection-status="reconnecting"] .editor-wrapper::before {
   padding      : 0;
   overflow-x   : hidden;
   word-wrap    : break-word;
+  flex-shrink  : 0;
+}
+
+/* File list section should be flexible and scrollable */
+.sidebar-section.flex-1 {
+  flex       : 1;
+  min-height : 0;
+  display    : flex;
+  flex-direction: column;
+  margin-bottom: 0;
 }
 
 .section-title {
@@ -503,11 +490,45 @@ body[data-connection-status="reconnecting"] .editor-wrapper::before {
 .file-list {
   overflow-y: auto;
   overflow-x: hidden;
-  flex-grow : 1;
-  max-height: calc(100vh - 400px);
+  flex      : 1;
+  min-height: 0;
   padding   : 4px;
   word-wrap : break-word;
   max-width : 100%;
+  /* Beautiful custom scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-blue) var(--darker-bg);
+}
+
+/* Enhanced Scrollbar for file list - Webkit browsers */
+.file-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.file-list::-webkit-scrollbar-track {
+  background   : var(--darker-bg);
+  border-radius: 5px;
+  margin       : 4px 0;
+  border       : 1px solid var(--border-subtle);
+}
+
+.file-list::-webkit-scrollbar-thumb {
+  background   : linear-gradient(180deg, var(--primary-blue) 0%, var(--accent-light-blue) 50%, var(--accent-cyan) 100%);
+  border-radius: 5px;
+  border       : 2px solid var(--darker-bg);
+  box-shadow   : 0 0 6px rgba(37, 99, 235, 0.5), inset 0 0 3px rgba(0, 0, 0, 0.3);
+  transition   : all 0.3s var(--ease-smooth);
+}
+
+.file-list::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--accent-light-blue) 0%, var(--primary-blue) 50%, var(--primary-dark-blue) 100%);
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.8), inset 0 0 6px rgba(0, 0, 0, 0.4);
+  border-color: var(--border-primary);
+}
+
+.file-list::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(180deg, var(--primary-dark-blue), var(--accent-navy));
+  box-shadow: 0 0 8px rgba(37, 99, 235, 1), inset 0 0 8px rgba(0, 0, 0, 0.5);
 }
 
 .file-item {
