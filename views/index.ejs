@@ -546,25 +546,35 @@ Start typing your shared content here...
       // Actually test the connection by making a request
       async function checkRealConnection() {
         try {
-          // Try to fetch a small resource from the same server
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 1000); // 1 second timeout
           
-          const response = await fetch('/ping', {
+          // Create a VERY short timeout promise (500ms)
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => {
+              controller.abort();
+              reject(new Error('Connection timeout'));
+            }, 500); // Only 500ms - if no response, consider offline
+          });
+          
+          // Race between fetch and timeout
+          const fetchPromise = fetch('/ping', {
             method: 'HEAD',
             cache: 'no-cache',
             signal: controller.signal
           });
           
-          clearTimeout(timeoutId);
+          const response = await Promise.race([fetchPromise, timeoutPromise]);
           return response.ok;
         } catch (error) {
+          // Timeout or network error - consider offline
           return false;
         }
       }
 
-      // Check connection status every second with smarter logic
+      // Check connection status every second - AGGRESSIVE MODE
       let isCheckingConnection = false; // Prevent overlapping checks
+      let consecutiveChecks = 0;
+      
       setInterval(async () => {
         if (isCheckingConnection) {
           return;
@@ -579,14 +589,20 @@ Start typing your shared content here...
           return;
         }
         
-        // Only do expensive connection test when needed
-        const needsConnectionTest = 
-          currentConnectionState === 'offline' || // Check if we can come back online
-          !socketConnected || // Socket is down
-          currentConnectionState === 'reconnecting'; // Already reconnecting
+        // Check connection every 3 seconds (skip 2 out of 3 checks when stable)
+        consecutiveChecks++;
+        const shouldCheck = 
+          currentConnectionState === 'offline' || // Always check if offline (to detect recovery)
+          !socketConnected || // Always check if socket down
+          currentConnectionState === 'reconnecting' || // Always check if reconnecting
+          consecutiveChecks >= 3; // Check every 3 seconds when stable
         
-        if (!needsConnectionTest) {
+        if (!shouldCheck) {
           return;
+        }
+        
+        if (consecutiveChecks >= 3) {
+          consecutiveChecks = 0;
         }
         
         // Perform actual connection test
@@ -613,7 +629,12 @@ Start typing your shared content here...
             socket.connect();
           }
         }
-      }, 1000); // Check every 1 second for faster detection
+        
+        // IMPORTANT: Also check when showing online (detect disconnection faster)
+        if (currentConnectionState === 'online' && !actuallyOnline) {
+          setConnectionStatus('offline', { reason: 'Connection lost', silent: true });
+        }
+      }, 1000); // Check every 1 second
 
       // Check connection when page becomes visible (mobile app switching)
       document.addEventListener('visibilitychange', async () => {
