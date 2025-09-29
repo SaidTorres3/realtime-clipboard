@@ -1035,7 +1035,7 @@ Start typing your shared content here...
 
       // Update file counts
       function updateFileCounts() {
-        const count = document.querySelectorAll('[data-filename]').length;
+        const count = document.querySelectorAll('.file-item[data-filename]').length;
         if (fileCount) fileCount.textContent = count;
         if (filesCount) filesCount.textContent = count;
       }
