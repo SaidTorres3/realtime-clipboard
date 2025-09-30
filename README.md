@@ -1,6 +1,6 @@
-# Real-Time Share App
+# RealTime Clipboard 2.0
 
-This is a real-time web application built with Node.js, Express, Multer, and Socket.IO. The application allows users to share text and files between multiple devices without requiring login or registration. The shared text and files are updated automatically in real-time between devices. It is intended for fast sharing text and files between multiple devices.
+A powerful real-time web application built with Node.js, Express, and Socket.IO that enables seamless text and file sharing between multiple devices without requiring login or registration. Share text and files instantly with automatic real-time synchronization across all connected devices.
 
 ## Screenshots
 
@@ -10,123 +10,521 @@ This is a real-time web application built with Node.js, Express, Multer, and Soc
 
 ## Features
 
-- Directly access the clipboard, no rooms or login required.
-- Real-time text sharing between multiple devices
-- File upload and deletion with real-time updates
-- Download files directly using `curl` or a web browser
-- Get the text directly using `curl`
-- Simple code
-- Lightweight
+### Core Features
+
+- **Zero Configuration**: Directly access the clipboard - no rooms or login required
+- **Real-time Synchronization**: Text and files update instantly across all connected devices
+- **Multi-Device Support**: Share seamlessly between desktops, tablets, and mobile devices
+- **CLI-Friendly**: Full support for `curl`, `wget`, and PowerShell commands
+
+### File Management
+
+- **Drag & Drop Upload**: Simple drag-and-drop interface for quick file uploads
+- **Multiple File Upload**: Upload multiple files simultaneously with progress tracking
+- **Large File Support**: Chunked upload system handles files of any size efficiently
+- **File Versioning**: Automatic version control for all uploaded files
+  - Keep track of all file versions with timestamps
+  - Restore previous versions with one click
+  - Compare and manage different file versions
+- **Smart File Previews**:
+  - In-browser preview for images (JPG, PNG, GIF, WebP, SVG, BMP, TIFF)
+  - Text file preview with syntax highlighting
+  - PDF viewer integrated in the browser
+- **Clipboard Image Paste**: Paste images directly from clipboard (Ctrl+V/Cmd+V)
+- **File Deletion**: Delete individual versions or all versions of a file
+
+### Environment System
+
+- **Multiple Environments**: Create isolated workspaces using custom paths (e.g., `/myproject`, `/team`)
+- **Automatic Cleanup**: Empty environments are automatically cleaned up
+- **Per-Environment Files**: Each environment has its own text and file storage
+- **Easy Switching**: Navigate between environments with simple URL paths
+
+### Modern UI/UX
+
+- **Clean, Modern Interface**: Beautiful Tailwind CSS design with dark theme
+- **Responsive Design**: Works perfectly on desktop, tablet, and mobile
+- **Real-time Updates**: Changes appear instantly without page refresh
+- **Upload Progress Tracking**: Visual progress bars for all uploads
+- **Font Awesome Icons**: Professional iconography throughout
+
+### Developer Features
+
+- **RESTful API**: Complete API for programmatic access
+- **WebSocket Support**: Real-time updates via Socket.IO
+- **Docker Support**: Easy deployment with Docker and docker-compose
+- **ES Modules**: Modern JavaScript module system
+- **Comprehensive Testing**: Full test suite with Mocha and Chai
+- **Sanitized Filenames**: Automatic filename sanitization for security
 
 ## Prerequisites
 
-- Node.js (v12 or higher)
-- npm (v6 or higher)
+- Node.js (v20 or higher recommended)
+- npm (v10 or higher)
 
 ## Installation
 
 1. Clone the repository:
 
-  ```bash
+```bash
   git clone https://github.com/SaidTorres3/realtime-clipboard.git
-  cd realtime-share-app
-  ```
+  cd realtime-clipboard
+```
 
 2. Install the dependencies:
 
-  ```bash
+```bash
   npm install
-  ```
+```
 
 ## Usage
 
+### Starting the Server
+
 1. Start the server:
 
-  ```bash
+```bash
+  npm start
+  # or
   node server.js
-  ```
+```
 
   The default host is `0.0.0.0` and the default port is `8088`.
 
-  To specify a custom host and port, use the following command:
+2. To specify a custom host and port:
 
-  ```bash
+```bash
   node server.js -a 0.0.0.0 -p 8088
-  ```
+```
 
   To specify a custom data directory where all uploaded files and shared text will be stored:
 
-  ```bash
+```bash
   node server.js --datadir /path/to/your/data
-  ```
+```
 
   You can also use an environment variable:
 
-  ```bash
+```bash
   DATA_DIR=/path/to/your/data node server.js
-  ```
+```
 
   By default, data is stored in the `./data` directory within the application folder.
 
-2. Open your web browser and navigate to `http://localhost:8088` to use the application. (Replace `localhost` with the IP of your machine to see it on another device)
+3. Access the application:
+   - Open your web browser and navigate to `http://localhost:8088`
+   - Replace `localhost` with your machine's IP address to access from other devices on your network
 
-  - To share text, simply type in the textarea, and it will be updated in real-time across all connected devices.
-  - To upload a file, use the file upload form. The uploaded file will be listed and available for download or deletion.
+### Using Environments
 
-## API
+Create isolated workspaces by adding a path to the URL:
 
-### Get Shared Text
+- Default environment: `http://localhost:8088`
+- Custom environments:
+  - `http://localhost:8088/myproject`
+  - `http://localhost:8088/team-alpha`
+  - `http://localhost:8088/personal`
 
-To get the shared text using curl:
+Each environment maintains its own separate text and file storage.
 
-  ```bash
-  curl http://localhost:8088
-  ```
+### Web Interface
 
-### Write Shared Text
+- **Text Sharing**: Type in the textarea and your text syncs automatically across all devices
+- **File Upload**:
+  - Drag and drop files onto the upload area
+  - Click the upload area to browse and select files
+  - Paste images directly with Ctrl+V (Cmd+V on Mac)
+- **File Management**:
+  - Click on files to download
+  - View image, txt and PDF previews by clicking the preview icon
+  - See file version history by clicking the version badge
+  - Delete files or specific versions using the delete button
 
-To write the shared text using curl:
+### Docker Deployment
 
-  ```bash
-  curl -X PUT -d "your text" http://localhost:8088
-  ```
+Using Docker Compose (recommended):
 
-### List Files
+```bash
+docker-compose up -d
+```
 
-To list the uploaded files:
+Using Docker directly:
 
-  ```bash
-  curl http://localhost:8088/files
-  ```
+```bash
+docker build -t realtime-clipboard .
+docker run -p 8088:8088 realtime-clipboard
+```
 
-### Download a Specific File
+## API Reference
 
-To download a specific file:
+The RealTime Clipboard provides a comprehensive REST API for programmatic access. All endpoints support both the default environment and custom environments.
 
-  ```bash
-  curl http://localhost:8088/files/yourfilename.ext --output yourfilename.ext
-  ```
+### Text Operations
 
-### Upload a File
+#### Get Shared Text
 
- ```bash
-  curl -F "file=@yourfilename.ext" http://localhost:8088/upload
-  ```
+```bash
+# Default environment
+curl http://localhost:8088
 
-### Delete a File
+# Custom environment
+curl http://localhost:8088/myproject
+```
 
-  ```bash
-  curl -X DELETE http://localhost:8088/files/yourfilename.ext
-  ```
+#### Update Shared Text
 
-## File Structure
+```bash
+# Default environment
+curl -X PUT -d "your text here" http://localhost:8088
 
-- `server.js`: The main server file that sets up the Express server, handles file uploads, deletions, and real-time updates.
-- `views/index.ejs`: The main view template for the web interface.
-- `data/`: The default directory where all application data is stored (configurable via `--datadir` parameter)
-  - `uploads/`: Uploaded files and file versions
-  - `sharedText/`: Shared text files for each environment
-  - `temp/`: Temporary files during upload process
+# Custom environment
+curl -X PUT -d "your text here" http://localhost:8088/myproject
+```
+
+### File Operations
+
+#### List Files
+
+```bash
+# Default environment - simple list
+curl http://localhost:8088/files
+
+# With version information
+curl http://localhost:8088/files?versions=true
+
+# JSON format
+curl http://localhost:8088/files?json=true
+
+# Custom environment
+curl http://localhost:8088/myproject/files
+```
+
+#### Upload File
+
+```bash
+# Default environment - single file
+curl -F "file=@document.pdf" http://localhost:8088/upload
+
+# Multiple files
+curl -F "file=@file1.txt" -F "file=@file2.jpg" http://localhost:8088/upload
+
+# Custom environment
+curl -F "file=@document.pdf" http://localhost:8088/myproject/upload
+```
+
+#### Download File
+
+```bash
+# Default environment - latest version
+curl http://localhost:8088/files/document.pdf --output document.pdf
+
+# Specific version
+curl http://localhost:8088/files/document.pdf?version=VERSION_ID --output document.pdf
+
+# Custom environment
+curl http://localhost:8088/myproject/files/document.pdf --output document.pdf
+```
+
+#### Delete File
+
+```bash
+# Default environment - delete all versions
+curl -X DELETE http://localhost:8088/files/document.pdf
+
+# Delete specific version only
+curl -X DELETE "http://localhost:8088/files/document.pdf?version=VERSION_ID"
+
+# Custom environment
+curl -X DELETE http://localhost:8088/myproject/files/document.pdf
+```
+
+### File Version Management
+
+#### Get File Version History
+
+```bash
+# Default environment
+curl http://localhost:8088/files/document.pdf/versions
+
+# Custom environment
+curl http://localhost:8088/myproject/files/document.pdf/versions
+```
+
+Returns JSON with complete version history including:
+
+- Version IDs and timestamps
+- File sizes
+- Current version indicator
+
+#### Promote a Version to Current
+
+```bash
+# Default environment
+curl -X PUT http://localhost:8088/files/document.pdf/versions/VERSION_ID/promote
+
+# Custom environment
+curl -X PUT http://localhost:8088/myproject/files/document.pdf/versions/VERSION_ID/promote
+```
+
+### File Preview Operations
+
+#### Preview Text Files
+
+```bash
+# Returns JSON with file content
+curl http://localhost:8088/files/readme.txt/preview
+
+# Custom environment
+curl http://localhost:8088/myproject/files/readme.txt/preview
+```
+
+Supports: `.txt`, `.md`, `.json`, `.xml`, `.csv`, `.log`, `.yaml`, `.yml`, code files, and more
+
+#### PDF Preview
+
+Access PDF files directly in browser:
+
+```
+http://localhost:8088/files/document.pdf/pdf-preview
+```
+
+### Chunked Upload API (for large files)
+
+For files larger than 10MB, the system automatically uses chunked uploads:
+
+1. **Initiate Upload**
+
+```bash
+curl -X POST http://localhost:8088/upload/initiate \
+  -H "Content-Type: application/json" \
+  -d '{"fileName":"largefile.zip","fileSize":104857600,"totalChunks":10}'
+```
+
+2. **Upload Chunks** (repeat for each chunk)
+
+```bash
+curl -X POST http://localhost:8088/upload/chunk \
+  -F "uploadId=UPLOAD_ID" \
+  -F "chunkIndex=0" \
+  -F "chunk=@chunk0.bin"
+```
+
+3. **Complete Upload**
+
+```bash
+curl -X POST http://localhost:8088/upload/complete \
+  -H "Content-Type: application/json" \
+  -d '{"uploadId":"UPLOAD_ID"}'
+```
+
+4. **Check Upload Status**
+
+```bash
+curl http://localhost:8088/upload/status/UPLOAD_ID
+```
+
+5. **Cancel Upload**
+
+```bash
+curl -X DELETE http://localhost:8088/upload/cancel/UPLOAD_ID
+```
+
+## Project Structure
+
+```
+realtime-clipboard/
+├── server.js                 # Main server file with Express, Socket.IO, and API routes
+├── package.json             # Project dependencies and scripts
+├── docker-compose.yml       # Docker Compose configuration
+├── Dockerfile               # Docker container configuration
+├── views/
+│   ├── index.ejs           # Main web interface template
+│   ├── styles.css          # Custom styles and animations
+│   └── tailwind.min.css    # Tailwind CSS framework
+├── data/
+│   ├── uploads/            # Uploaded files organized by environment
+│   │   ├── default/        # Default environment files
+│   │   │   └── .versions/  # File version history
+│   │   └── [env-name]/     # Custom environment files
+│   └── sharedText/         # Text content per environment
+│       ├── default.txt     # Default environment text
+│       └── [env-name].txt  # Custom environment text
+├── temp/                    # Temporary storage for chunked uploads
+├── test/                    # Test suite
+│   ├── test.js             # Mocha test cases
+│   └── test files/         # Test fixtures
+└── images/                  # Documentation images
+```
+
+## Key Technologies
+
+- **Backend Framework**: Express.js (v4.19.2)
+- **Real-time Engine**: Socket.IO (v4.7.5)
+- **File Upload**: Multer (v1.4.5) & Busboy (v1.6.0)
+- **Template Engine**: EJS (v3.1.10)
+- **Frontend Framework**: Tailwind CSS (v3.x)
+- **Icons**: Font Awesome (v6.5.0)
+- **Testing**: Mocha (v10.4.0) & Chai (v5.1.1)
+- **Security**: sanitize-filename (v1.6.3)
+- **Unique IDs**: UUID (v13.0.0)
+
+## Configuration
+
+### Environment Variables
+
+```bash
+HOST=0.0.0.0          # Server host (default: 0.0.0.0)
+PORT=8088             # Server port (default: 8088)
+```
+
+### Command Line Options
+
+```bash
+node server.js -a <host> -p <port>
+```
+
+Example:
+
+```bash
+node server.js -a 127.0.0.1 -p 3000
+```
+
+## Testing
+
+Run the test suite:
+
+```bash
+npm test
+```
+
+The test suite includes:
+
+- Text synchronization tests
+- File upload and download tests
+- Multi-environment tests
+- API endpoint tests
+- Real-time update tests
+
+## Performance & Scalability
+
+- **Chunked Uploads**: Files larger than 10MB are automatically chunked for reliable transfer
+- **Automatic Cleanup**:
+  - Stale upload sessions cleaned every 10 seconds
+  - Empty environments cleaned every 5 minutes
+  - Orphaned temporary files removed on startup
+- **Memory Efficient**: Text is cached in memory and persisted to disk
+- **Version Control**: Old file versions stored separately with efficient metadata tracking
+
+## Security Features
+
+- **Filename Sanitization**: All filenames are sanitized to prevent path traversal attacks
+- **MIME Type Detection**: Proper content-type headers for secure file serving
+- **Isolated Environments**: Each environment has completely separate storage
+- **Upload Limits**: Configurable file size limits (default: 50MB for JSON payloads)
+- **Session Cleanup**: Automatic cleanup of abandoned upload sessions
+
+## Use Cases
+
+- **Quick File Transfer**: Share files between your devices without USB drives or cloud storage
+- **Development Teams**: Share code snippets, logs, and files in isolated team environments
+- **Cross-Platform Clipboard**: Universal clipboard that works across Windows, Mac, Linux, iOS, and Android
+- **Temporary File Sharing**: Quick file sharing without creating accounts or permanent storage
+- **Local Network Sharing**: Fast file transfer within your local network
+- **CI/CD Integration**: Use the API to upload build artifacts or download configuration files
+- **Remote Support**: Share logs and files with remote team members instantly
+
+## Browser Support
+
+- Chrome/Edge (v90+)
+- Firefox (v88+)
+- Safari (v14+)
+- Mobile browsers (iOS Safari, Chrome Mobile)
+
+## Troubleshooting
+
+### Port Already in Use
+
+If port 8088 is already in use:
+
+```bash
+node server.js -p 8089
+```
+
+### Cannot Access from Other Devices
+
+1. Check your firewall settings - ensure port 8088 is open
+2. Verify you're using your machine's IP address, not `localhost`
+3. Ensure devices are on the same network
+
+### Upload Fails for Large Files
+
+- Files are automatically chunked if larger than 10MB
+- Check available disk space in the `data/uploads` directory
+- Increase upload limits if needed in `server.js`
+
+### Environment Not Showing Files
+
+- Refresh the page to resync
+- Check browser console for WebSocket connection errors
+- Verify the environment path in the URL
+
+## What's New in v2.0.0
+
+🎉 **Major Release** - Complete rewrite with modern features!
+
+### New Features
+
+- ✨ File versioning system with complete history tracking
+- 🎨 Modern UI redesign with Tailwind CSS and dark theme
+- 🌍 Multi-environment support for isolated workspaces
+- 📦 Chunked upload system for large files
+- 🖼️ Image paste from clipboard (Ctrl+V)
+- 👁️ File preview for images, PDFs, and text files
+- 📊 Real-time upload progress tracking
+- 🔄 Version promotion and restoration
+- 🧹 Automatic cleanup of empty environments and old sessions
+- 📱 Improved mobile responsive design
+
+### Improvements
+
+- ⚡ Better performance with optimized file handling
+- 🔒 Enhanced security with filename sanitization
+- 🛠️ Comprehensive API documentation
+- 🐳 Docker and docker-compose support
+- 🧪 Full test suite with Mocha and Chai
+- 📦 ES Modules support
+- 🎯 Better error handling and user feedback
+
+### Technical Upgrades
+
+- Upgraded to Socket.IO v4.7.5
+- Modern ES6+ JavaScript throughout
+- Improved WebSocket stability
+- Better cleanup mechanisms
+- Enhanced environment management
+
+## Changelog
+
+### v2.0.0 (2025)
+
+- Complete rewrite with modern architecture
+- Added file versioning system
+- Added multi-environment support
+- Added chunked uploads for large files
+- Added file preview capabilities
+- Added clipboard image paste
+- New modern UI with Tailwind CSS
+- Improved API with comprehensive documentation
+- Added Docker support
+- Added test suite
+- Enhanced security features
+
+### v1.0.0 (Previous)
+
+- Initial release
+- Basic text sharing
+- Simple file upload/download
+- Real-time synchronization
 
 ## License
 
@@ -134,11 +532,47 @@ This project is licensed under the MIT License - see the `LICENSE` file for deta
 
 ## Contributing
 
-Contributions are welcome! Please fork the repository and submit a pull request.
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes:
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+Please make sure to:
+
+- Update tests as appropriate
+- Update documentation for new features
+- Follow the existing code style
+- Test your changes thoroughly
+
+## Support
+
+If you encounter any issues or have questions:
+
+- Open an issue on GitHub
+- Check existing issues for solutions
+- Review the troubleshooting section above
 
 ## Acknowledgements
 
-- Express
-- Multer
-- Socket.IO
-- EJS
+Built with these amazing open-source projects:
+
+- **[Express](https://expressjs.com/)** - Fast, unopinionated web framework
+- **[Socket.IO](https://socket.io/)** - Real-time bidirectional event-based communication
+- **[Multer](https://github.com/expressjs/multer)** - Node.js middleware for handling multipart/form-data
+- **[EJS](https://ejs.co/)** - Embedded JavaScript templating
+- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
+- **[Font Awesome](https://fontawesome.com/)** - Icon library and toolkit
+- **[Busboy](https://github.com/mscdex/busboy)** - Streaming parser for HTML form data
+- **[UUID](https://github.com/uuidjs/uuid)** - Generate RFC-compliant UUIDs
+- **[Mocha](https://mochajs.org/)** & **[Chai](https://www.chaijs.com/)** - Testing frameworks
+
+Special thanks to all contributors and users who have helped improve this project!
+
+---
+
+**Made with ❤️ for the open-source community**
+
+⭐ Star this repository if you find it useful!
