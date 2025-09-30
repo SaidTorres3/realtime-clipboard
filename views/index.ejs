@@ -1274,13 +1274,9 @@ Start typing your shared content here...
         showNotification(`👋 User left (${connectedUsers} total)`, 'info');
       });
 
-      // Debounced input handling for better performance
-      let inputTimeout;
+      // Real-time input handling - no debounce for instant synchronization
       textarea.addEventListener("input", () => {
-        clearTimeout(inputTimeout);
-        inputTimeout = setTimeout(() => {
-          socket.emit("textChange", textarea.value);
-        }, 300);
+        socket.emit("textChange", textarea.value);
       });
 
       socket.on("fileUpdate", () => {
