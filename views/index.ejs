@@ -2281,18 +2281,70 @@ Start typing your shared content here...
 
       // Enhanced resizer with better performance for VNC and touch support for mobile
       let isResizing = false;
+      let previousLayoutWasMobile = isMobileLayout();
       
-      // Mouse events for desktop
+      // Helper function to check if we're on mobile
+      function isMobileLayout() {
+        return window.innerWidth <= 768;
+      }
+      
+      // Function to reset sidebar styles when switching layouts
+      function resetSidebarStyles() {
+        const currentlyMobile = isMobileLayout();
+        
+        // Only reset if layout actually changed
+        if (currentlyMobile !== previousLayoutWasMobile) {
+          const contentArea = document.querySelector('.content-area');
+          
+          if (!currentlyMobile) {
+            // Switching to desktop: remove mobile height styles
+            sidebar.style.height = '';
+            sidebar.style.maxHeight = '';
+            sidebar.style.minHeight = '';
+            
+            if (contentArea) {
+              contentArea.style.height = '';
+              contentArea.style.maxHeight = '';
+              contentArea.style.minHeight = '';
+            }
+          } else {
+            // Switching to mobile: remove desktop width styles
+            sidebar.style.width = '';
+          }
+          
+          previousLayoutWasMobile = currentlyMobile;
+        }
+      }
+      
+      // Listen for window resize to handle layout changes
+      let resizeTimeout;
+      window.addEventListener('resize', function() {
+        // Debounce the resize event
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(resetSidebarStyles, 100);
+      });
+      
+      // Mouse events for desktop (horizontal resize)
       resizer.addEventListener("mousedown", function (e) {
         e.preventDefault();
         isResizing = true;
-        document.addEventListener("mousemove", resize);
-        document.addEventListener("mouseup", stopResize);
-        document.body.style.cursor = 'ew-resize';
+        
+        if (isMobileLayout()) {
+          // On mobile layout, use vertical resize with mouse
+          document.addEventListener("mousemove", resizeMobileVertical);
+          document.addEventListener("mouseup", stopResizeMobile);
+          document.body.style.cursor = 'ns-resize';
+        } else {
+          // On desktop layout, use horizontal resize
+          document.addEventListener("mousemove", resize);
+          document.addEventListener("mouseup", stopResize);
+          document.body.style.cursor = 'ew-resize';
+        }
+        
         document.body.style.userSelect = 'none';
       });
 
-      // Touch events for mobile
+      // Touch events for mobile (vertical resize)
       resizer.addEventListener("touchstart", function (e) {
         e.preventDefault();
         isResizing = true;
@@ -2301,13 +2353,36 @@ Start typing your shared content here...
         document.body.style.userSelect = 'none';
       });
 
+      // Desktop horizontal resize
       function resize(e) {
         if (!isResizing) return;
         
         const minWidth = 300;
-        const maxWidth = Math.min(1200, window.innerWidth * 0.75); // Increased from 600px and 60% to 1200px and 75%
+        const maxWidth = Math.min(1200, window.innerWidth * 0.75);
         const newWidth = Math.max(minWidth, Math.min(maxWidth, e.clientX));
         sidebar.style.width = newWidth + "px";
+      }
+      
+      // Mobile vertical resize with mouse
+      function resizeMobileVertical(e) {
+        if (!isResizing) return;
+        
+        const minHeight = window.innerHeight * 0.15;
+        const maxHeight = window.innerHeight * 0.85;
+        const mouseY = e.clientY;
+        const newHeight = Math.max(minHeight, Math.min(maxHeight, window.innerHeight - mouseY));
+        
+        sidebar.style.height = newHeight + "px";
+        sidebar.style.maxHeight = newHeight + "px";
+        sidebar.style.minHeight = newHeight + "px";
+        
+        const contentArea = document.querySelector('.content-area');
+        if (contentArea) {
+          const contentHeight = window.innerHeight - newHeight;
+          contentArea.style.height = contentHeight + "px";
+          contentArea.style.maxHeight = contentHeight + "px";
+          contentArea.style.minHeight = contentHeight + "px";
+        }
       }
 
       function resizeTouch(e) {
@@ -2341,6 +2416,14 @@ Start typing your shared content here...
         isResizing = false;
         document.removeEventListener("mousemove", resize);
         document.removeEventListener("mouseup", stopResize);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+      
+      function stopResizeMobile() {
+        isResizing = false;
+        document.removeEventListener("mousemove", resizeMobileVertical);
+        document.removeEventListener("mouseup", stopResizeMobile);
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
       }
