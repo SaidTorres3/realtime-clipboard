@@ -865,6 +865,12 @@ app.get('/:environment/files/:filename', (req, res) => {
 
   res.download(filepath, filename, (err) => {
     if (err) {
+      // Handle connection aborted errors (client disconnected)
+      if (err.code === 'ECONNABORTED' || err.message.includes('aborted')) {
+        console.log(`Download aborted by client: ${filename}`);
+        return; // Client already disconnected, no response needed
+      }
+      
       console.error('Error downloading the file:', err);
       if (!res.headersSent) {
         res.status(500).send('Error downloading the file\n');
@@ -899,6 +905,12 @@ app.get('/files/:filename', (req, res) => {
 
   res.download(filepath, filename, (err) => {
     if (err) {
+      // Handle connection aborted errors (client disconnected)
+      if (err.code === 'ECONNABORTED' || err.message.includes('aborted')) {
+        console.log(`Download aborted by client: ${filename}`);
+        return; // Client already disconnected, no response needed
+      }
+      
       console.error('Error downloading the file:', err);
       if (!res.headersSent) {
         res.status(500).send('Error downloading the file\n');

@@ -681,9 +681,9 @@ Start typing your shared content here...
           // Test actual connection
           const actuallyOnline = await checkRealConnection();
           
-          if (!actuallyOnline && currentConnectionStatus !== 'offline') {
+          if (!actuallyOnline && currentConnectionState !== 'offline') {
             setConnectionStatus('offline', { reason: 'Cannot reach server', silent: true });
-          } else if (actuallyOnline && currentConnectionStatus === 'offline') {
+          } else if (actuallyOnline && currentConnectionState === 'offline') {
             if (!socket.connected) {
               socket.connect();
             } else {
