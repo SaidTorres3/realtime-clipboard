@@ -21,9 +21,11 @@ const args = minimist(process.argv.slice(2));
 const host = args.a || process.env.HOST || '0.0.0.0';
 const port = args.p || process.env.PORT || 8088;
 
-const dataDir = path.join(__dirname, 'data');
+// Allow custom data directory via --datadir parameter or DATA_DIR environment variable
+// If not specified, defaults to './data' in the application directory
+const dataDir = args.datadir || process.env.DATA_DIR || path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir);
+  fs.mkdirSync(dataDir, { recursive: true });
 }
 
 const uploadsDir = path.join(dataDir, 'uploads');
@@ -563,7 +565,6 @@ const getAllVersionedFiles = (environmentName) => {
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const environmentName = getEnvironmentName(req);
-    const tempDir = path.join(__dirname, 'temp');
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
@@ -1247,7 +1248,7 @@ app.post('/:environment/upload/complete', (req, res) => {
   try {
     // Create temporary file to combine chunks
     const tempFileName = `complete-${uploadId}-${Date.now()}.tmp`;
-    const tempPath = path.join(__dirname, 'temp', tempFileName);
+    const tempPath = path.join(tempDir, tempFileName);
     const chunks = [];
 
     // Read all chunks first
@@ -1338,7 +1339,7 @@ app.post('/upload/complete', (req, res) => {
   try {
     // Create temporary file to combine chunks
     const tempFileName = `complete-${uploadId}-${Date.now()}.tmp`;
-    const tempPath = path.join(__dirname, 'temp', tempFileName);
+    const tempPath = path.join(tempDir, tempFileName);
     const chunks = [];
 
     // Read all chunks first
@@ -1581,7 +1582,7 @@ app.post('/paste-image', (req, res) => {
     const filename = `pasted-image-${timestamp}.${imageType}`;
     
     // Create temporary file
-    const tempPath = path.join(__dirname, 'temp', `paste-${Date.now()}.${imageType}`);
+    const tempPath = path.join(tempDir, `paste-${Date.now()}.${imageType}`);
     fs.writeFileSync(tempPath, imageBuffer);
     
     // Use versioning system to handle the file
@@ -1648,7 +1649,7 @@ app.post('/:environment/paste-image', (req, res) => {
     const filename = `pasted-image-${timestamp}.${imageType}`;
     
     // Create temporary file
-    const tempPath = path.join(__dirname, 'temp', `paste-${Date.now()}.${imageType}`);
+    const tempPath = path.join(tempDir, `paste-${Date.now()}.${imageType}`);
     fs.writeFileSync(tempPath, imageBuffer);
     
     // Use versioning system to handle the file
@@ -2272,6 +2273,7 @@ server.listen(port, host, () => {
     const localIP = getLocalIPAddress();
     console.log(`Access it using http://${localIP}:${port}`);
   }
+  console.log(`Data directory: ${dataDir}`);
 });
 
 export default app; // Export the app for testing

@@ -54,6 +54,20 @@ This is a real-time web application built with Node.js, Express, Multer, and Soc
   node server.js -a 0.0.0.0 -p 8088
   ```
 
+  To specify a custom data directory where all uploaded files and shared text will be stored:
+
+  ```bash
+  node server.js --datadir /path/to/your/data
+  ```
+
+  You can also use an environment variable:
+
+  ```bash
+  DATA_DIR=/path/to/your/data node server.js
+  ```
+
+  By default, data is stored in the `./data` directory within the application folder.
+
 2. Open your web browser and navigate to `http://localhost:8088` to use the application. (Replace `localhost` with the IP of your machine to see it on another device)
 
   - To share text, simply type in the textarea, and it will be updated in real-time across all connected devices.
@@ -109,7 +123,10 @@ To download a specific file:
 
 - `server.js`: The main server file that sets up the Express server, handles file uploads, deletions, and real-time updates.
 - `views/index.ejs`: The main view template for the web interface.
-- `uploads/`: The directory where uploaded files are stored.
+- `data/`: The default directory where all application data is stored (configurable via `--datadir` parameter)
+  - `uploads/`: Uploaded files and file versions
+  - `sharedText/`: Shared text files for each environment
+  - `temp/`: Temporary files during upload process
 
 ## License
 
