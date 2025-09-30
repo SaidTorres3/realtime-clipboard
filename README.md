@@ -479,7 +479,7 @@ node server.js -p 8089
 - 🌍 Multi-environment support for isolated workspaces
 - 📦 Chunked upload system for large files
 - 🖼️ Image paste from clipboard (Ctrl+V)
-- 👁️ File preview for images, PDFs, and text files
+- 👁️ File preview for images, videos, PDFs, and text files
 - 📊 Real-time upload progress tracking
 - 🔄 Version promotion and restoration
 - 🧹 Automatic cleanup of empty environments and old sessions

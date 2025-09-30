@@ -1416,6 +1416,95 @@ body[data-connection-status="offline"] .editor-wrapper::before {
   margin-right: 8px;
 }
 
+/* Video Preview Styles */
+.video-preview-icon {
+  position     : relative;
+  display      : inline-block;
+  width        : 60px;
+  height       : 60px;
+  border-radius: 8px;
+  overflow     : hidden;
+  cursor       : pointer;
+  border       : 2px solid var(--border-primary);
+  transition   : all 0.3s var(--ease-smooth);
+  box-shadow   : var(--shadow-subtle);
+  background   : linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+}
+
+.video-preview-icon:hover {
+  border-color: #7c3aed;
+  transform   : scale(1.05);
+  box-shadow  : var(--shadow-medium);
+}
+
+.video-icon {
+  position       : absolute;
+  top            : 0;
+  left           : 0;
+  right          : 0;
+  bottom         : 0;
+  display        : flex;
+  align-items    : center;
+  justify-content: center;
+  color          : white;
+  font-size      : 24px;
+  transition     : all 0.3s var(--ease-smooth);
+}
+
+/* Pure text variant for video thumbnails */
+.video-icon-text {
+  position       : absolute;
+  inset          : 0;
+  display        : flex;
+  align-items    : center;
+  justify-content: center;
+  font-weight    : 700;
+  font-size      : 28px;
+  font-family    : 'Inter', system-ui, sans-serif;
+  color          : #fff;
+  text-shadow    : 0 1px 2px rgba(0,0,0,0.4);
+  pointer-events : none;
+  user-select    : none;
+}
+
+.video-overlay {
+  position       : absolute;
+  top            : 0;
+  left           : 0;
+  right          : 0;
+  bottom         : 0;
+  background     : rgba(124, 58, 237, 0.85);
+  display        : flex;
+  align-items    : center;
+  justify-content: center;
+  color          : white;
+  font-size      : 20px;
+  opacity        : 0;
+  transition     : opacity 0.3s var(--ease-smooth);
+  pointer-events : none;
+}
+
+.video-preview-icon:hover .video-overlay {
+  opacity: 1;
+}
+
+.video-preview-icon:hover .video-icon {
+  color: #ddd6fe;
+}
+
+.file-item.has-video {
+  align-items: center;
+  padding    : 12px 16px;
+}
+
+.file-item.has-video .file-info {
+  align-items: center;
+}
+
+.file-item.has-video .video-preview-icon {
+  margin-right: 8px;
+}
+
 .image-modal {
   position       : fixed;
   top            : 0;
@@ -1585,6 +1674,47 @@ body[data-connection-status="offline"] .editor-wrapper::before {
   border       : none;
   border-radius: 8px;
   background   : white;
+}
+
+/* Video Modal Styles */
+.video-modal-content {
+  max-width : 90vw;
+  max-height: 90vh;
+  width     : 900px;
+  height    : 700px;
+}
+
+.video-modal-header {
+  display        : flex;
+  justify-content: space-between;
+  align-items    : center;
+  margin-bottom  : 15px;
+  padding-bottom : 10px;
+  border-bottom  : 1px solid var(--border-primary);
+}
+
+.video-modal-info {
+  font-size: 12px;
+  color    : var(--text-muted);
+}
+
+.video-modal-body {
+  height       : calc(100% - 60px);
+  overflow     : hidden;
+  border       : 1px solid var(--border-primary);
+  border-radius: 8px;
+  background   : var(--darker-bg);
+  display      : flex;
+  align-items  : center;
+  justify-content: center;
+}
+
+.video-player {
+  width        : 100%;
+  max-height   : 100%;
+  border-radius: 8px;
+  background   : black;
+  outline      : none;
 }
 
 /* File type specific syntax highlighting hints */

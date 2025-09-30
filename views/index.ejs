@@ -118,6 +118,8 @@
                   const isText = typeof file === 'object' ? file.isTextFile : false;
                   // Check isPDFFile property first, then fall back to file extension check for older files
                   const isPDF = typeof file === 'object' ? (file.isPDFFile || (fileName && fileName.toLowerCase().endsWith('.pdf'))) : false;
+                  // Check isVideoFile property
+                  const isVideo = typeof file === 'object' ? file.isVideoFile : false;
                   const totalVersions = typeof file === 'object' ? file.totalVersions : 1;
                   const hasMultipleVersions = totalVersions > 1;
                   
@@ -156,7 +158,7 @@
                     }
                   }
                 %>
-                <div class="file-item <%= isImage ? 'has-image' : '' %> <%= isText ? 'has-text' : '' %> <%= isPDF ? 'has-pdf' : '' %> <%= hasMultipleVersions ? 'has-versions' : '' %>" 
+                <div class="file-item <%= isImage ? 'has-image' : '' %> <%= isText ? 'has-text' : '' %> <%= isPDF ? 'has-pdf' : '' %> <%= isVideo ? 'has-video' : '' %> <%= hasMultipleVersions ? 'has-versions' : '' %>" 
                      data-filename="<%= fileName %>" 
                      data-versions="<%= totalVersions %>">
                   <div class="file-info">
@@ -190,6 +192,15 @@
                         <div class="pdf-icon-text">PDF</div>
                         <div class="pdf-overlay">
                           <i class="fas fa-eye"></i>
+                        </div>
+                      </div>
+                    <% } else if (isVideo) { %>
+                      <div class="video-preview-icon" 
+                           data-video-url="<%= typeof environmentPath !== 'undefined' ? environmentPath : '' %>/files/<%= fileName %>"
+                           data-filename="<%= fileName %>">
+                        <div class="video-icon-text">▶</div>
+                        <div class="video-overlay">
+                          <i class="fas fa-play"></i>
                         </div>
                       </div>
                     <% } else { %>
@@ -366,6 +377,22 @@ Start typing your shared content here...
         </div>
         <div class="pdf-modal-body">
           <iframe id="pdf-modal-iframe" class="pdf-viewer"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <!-- Video Preview Modal -->
+    <div id="video-modal" class="image-modal">
+      <div class="modal-content video-modal-content">
+        <button class="modal-close" onclick="closeVideoModal()">×</button>
+        <div class="video-modal-header">
+          <div id="video-modal-filename" class="modal-filename"></div>
+          <div id="video-modal-info" class="video-modal-info"></div>
+        </div>
+        <div class="video-modal-body">
+          <video id="video-modal-player" class="video-player" controls>
+            Your browser does not support the video tag.
+          </video>
         </div>
       </div>
     </div>
@@ -817,6 +844,9 @@ Start typing your shared content here...
         // Setup PDF previews
         setupPDFPreviews();
         
+        // Setup video previews
+        setupVideoPreviews();
+        
         // VNC performance check
         if (isVNCConnection()) {
           document.body.classList.add('no-animate');
@@ -828,6 +858,7 @@ Start typing your shared content here...
           const imageModal = document.getElementById('image-modal');
           const textModal = document.getElementById('text-modal');
           const pdfModal = document.getElementById('pdf-modal');
+          const videoModal = document.getElementById('video-modal');
           const versionModal = document.getElementById('version-modal');
           
           if (e.target === imageModal) {
@@ -838,6 +869,9 @@ Start typing your shared content here...
           }
           if (e.target === pdfModal) {
             closePDFModal();
+          }
+          if (e.target === videoModal) {
+            closeVideoModal();
           }
           if (e.target === versionModal) {
             closeVersionModal();
@@ -858,6 +892,8 @@ Start typing your shared content here...
               closeTextModal();
             } else if (pdfModal.classList.contains('show')) {
               closePDFModal();
+            } else if (videoModal.classList.contains('show')) {
+              closeVideoModal();
             } else if (versionModal.classList.contains('show')) {
               closeVersionModal();
             }
@@ -1125,6 +1161,73 @@ Start typing your shared content here...
           });
         });
       }
+
+      // Video Modal Functions
+      function showVideoModal(videoUrl, filename) {
+        console.log('Opening video preview for:', videoUrl, filename);
+        
+        const modal = document.getElementById('video-modal');
+        const modalFilename = document.getElementById('video-modal-filename');
+        const modalInfo = document.getElementById('video-modal-info');
+        const modalPlayer = document.getElementById('video-modal-player');
+        
+        // Show modal and loading state
+        modalFilename.textContent = filename;
+        modalInfo.textContent = 'Loading video...';
+        modalPlayer.src = '';
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        
+        // Load video
+        modalPlayer.src = videoUrl;
+        modalInfo.textContent = `Video • Ready`;
+        
+        // Handle video load events
+        modalPlayer.onloadedmetadata = function() {
+          const duration = Math.floor(modalPlayer.duration);
+          const minutes = Math.floor(duration / 60);
+          const seconds = duration % 60;
+          modalInfo.textContent = `Video • ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        };
+        
+        modalPlayer.onerror = function() {
+          modalInfo.textContent = `Error loading video`;
+        };
+      }
+      
+      function closeVideoModal() {
+        const modal = document.getElementById('video-modal');
+        const modalPlayer = document.getElementById('video-modal-player');
+        modal.classList.remove('show');
+        modalPlayer.pause(); // Pause video playback
+        modalPlayer.src = ''; // Stop loading video
+        document.body.style.overflow = '';
+      }
+
+      function setupVideoPreviews() {
+        document.querySelectorAll('.video-preview-icon').forEach(preview => {
+          // Remove existing event listeners to prevent duplicates
+          const newPreview = preview.cloneNode(true);
+          preview.parentNode.replaceChild(newPreview, preview);
+          
+          console.log('Setting up video preview click for:', newPreview);
+          
+          // Add click functionality
+          newPreview.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const videoUrl = this.getAttribute('data-video-url');
+            const filename = this.getAttribute('data-filename');
+            
+            console.log('Video preview clicked:', videoUrl, filename);
+            
+            if (videoUrl && filename) {
+              showVideoModal(videoUrl, filename);
+            }
+          });
+        });
+      }
       
       // Setup click functionality for text preview icons
       function setupTextPreviews() {
@@ -1294,6 +1397,7 @@ Start typing your shared content here...
             setupImageThumbnails();
             setupTextPreviews();
             setupPDFPreviews();
+            setupVideoPreviews();
             updateFileCounts();
           })
           .catch((error) => {
@@ -1314,6 +1418,7 @@ Start typing your shared content here...
                   setupImageThumbnails();
                   setupTextPreviews();
                   setupPDFPreviews();
+                  setupVideoPreviews();
                   updateFileCounts();
                 }
               })
@@ -1341,13 +1446,15 @@ Start typing your shared content here...
           const isText = file.isTextFile;
           // Check isPDFFile property first, then fall back to file extension check for older files
           const isPDF = file.isPDFFile || (fileName && fileName.toLowerCase().endsWith('.pdf'));
+          // Check isVideoFile property
+          const isVideo = file.isVideoFile;
           const totalVersions = file.totalVersions;
           const hasMultipleVersions = totalVersions > 1;
           const uploadDate = file.currentVersion ? formatDate(file.currentVersion.uploadedAt) : 'Unknown';
           const fileSize = file.currentVersion ? formatFileSize(file.currentVersion.fileSize) : '';
           
           return `
-            <div class="file-item ${isImage ? 'has-image' : ''} ${isText ? 'has-text' : ''} ${isPDF ? 'has-pdf' : ''} ${hasMultipleVersions ? 'has-versions' : ''}" 
+            <div class="file-item ${isImage ? 'has-image' : ''} ${isText ? 'has-text' : ''} ${isPDF ? 'has-pdf' : ''} ${isVideo ? 'has-video' : ''} ${hasMultipleVersions ? 'has-versions' : ''}" 
                  data-filename="${fileName}" 
                  data-versions="${totalVersions}">
               <div class="file-info">
@@ -1381,6 +1488,15 @@ Start typing your shared content here...
                     <div class="pdf-icon-text">PDF</div>
                     <div class="pdf-overlay">
                       <i class="fas fa-eye"></i>
+                    </div>
+                  </div>
+                ` : isVideo ? `
+                  <div class="video-preview-icon" 
+                       data-video-url="${environmentPath}/files/${fileName}"
+                       data-filename="${fileName}">
+                    <div class="video-icon-text">▶</div>
+                    <div class="video-overlay">
+                      <i class="fas fa-play"></i>
                     </div>
                   </div>
                 ` : `

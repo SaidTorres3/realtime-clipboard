@@ -125,6 +125,13 @@ const isPDFFile = (filename) => {
   return ext === '.pdf';
 };
 
+// Helper function to check if file is a video
+const isVideoFile = (filename) => {
+  const videoExtensions = ['.mp4', '.webm', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.m4v', '.mpeg', '.mpg', '.3gp', '.ogv'];
+  const ext = path.extname(filename).toLowerCase();
+  return videoExtensions.includes(ext);
+};
+
 const getEnvironmentUploadsDir = (environmentName, createIfNotExists = false) => {
   const envDir = path.join(uploadsDir, environmentName);
   if (createIfNotExists && !fs.existsSync(envDir)) {
@@ -424,7 +431,8 @@ const createNewVersion = (environmentName, originalFileName, fileSize, sourceFil
     fileSize,
     isImageFile: isImageFile(originalFileName),
     isTextFile: isTextFile(originalFileName),
-    isPDFFile: isPDFFile(originalFileName)
+    isPDFFile: isPDFFile(originalFileName),
+    isVideoFile: isVideoFile(originalFileName)
   };
   
   // Update metadata
@@ -551,6 +559,7 @@ const getAllVersionedFiles = (environmentName) => {
           isImageFile: isImageFile(fileName),
           isTextFile: isTextFile(fileName),
           isPDFFile: isPDFFile(fileName),
+          isVideoFile: isVideoFile(fileName),
           size: stats.size,
           lastModified: stats.mtime
         });
@@ -583,7 +592,7 @@ const io = new SocketIoServer(server);
 
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
-// Configure static file serving with proper MIME types for images
+// Configure static file serving with proper MIME types for images and videos
 app.use('/uploads', express.static(uploadsDir, {
   setHeaders: (res, path) => {
     // Set proper MIME types for common image formats
@@ -601,9 +610,31 @@ app.use('/uploads', express.static(uploadsDir, {
       'tif': 'image/tiff'
     };
     
+    // Set proper MIME types for video formats
+    const videoMimeTypes = {
+      'mp4': 'video/mp4',
+      'webm': 'video/webm',
+      'avi': 'video/x-msvideo',
+      'mov': 'video/quicktime',
+      'mkv': 'video/x-matroska',
+      'flv': 'video/x-flv',
+      'wmv': 'video/x-ms-wmv',
+      'm4v': 'video/x-m4v',
+      'mpeg': 'video/mpeg',
+      'mpg': 'video/mpeg',
+      '3gp': 'video/3gpp',
+      'ogv': 'video/ogg'
+    };
+    
     if (imageMimeTypes[ext]) {
       res.setHeader('Content-Type', imageMimeTypes[ext]);
       // Add caching headers for images
+      res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year
+    } else if (videoMimeTypes[ext]) {
+      res.setHeader('Content-Type', videoMimeTypes[ext]);
+      // Add support for range requests (important for video seeking)
+      res.setHeader('Accept-Ranges', 'bytes');
+      // Add caching headers for videos
       res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year
     }
   }
