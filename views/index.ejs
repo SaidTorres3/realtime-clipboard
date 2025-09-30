@@ -495,10 +495,16 @@ Start typing your shared content here...
   const initialConnectionState = !navigator.onLine ? 'offline' : (socket.connected ? 'online' : 'reconnecting');
   setConnectionStatus(initialConnectionState, { silent: true, suppressNext: true });
 
-      socket.on('connect', () => {
-        // Only set to online if browser is actually online
-        if (navigator.onLine) {
-          setConnectionStatus('online');
+      socket.on('connect', async () => {
+        // Test actual connection before marking as online
+        try {
+          const actuallyOnline = await checkRealConnection();
+          if (actuallyOnline) {
+            setConnectionStatus('online');
+          }
+        } catch (error) {
+          // If connection test fails, stay in reconnecting
+          setConnectionStatus('reconnecting');
         }
       });
 
@@ -548,12 +554,12 @@ Start typing your shared content here...
         try {
           const controller = new AbortController();
           
-          // Create a VERY short timeout promise (500ms)
+          // Create a timeout promise (2 seconds - balance between speed and slow connections)
           const timeoutPromise = new Promise((_, reject) => {
             setTimeout(() => {
               controller.abort();
               reject(new Error('Connection timeout'));
-            }, 500); // Only 500ms - if no response, consider offline
+            }, 3000); // 2 seconds - works with slow 3G/4G but still fast enough
           });
           
           // Race between fetch and timeout
@@ -609,6 +615,12 @@ Start typing your shared content here...
         isCheckingConnection = true;
         const actuallyOnline = await checkRealConnection();
         isCheckingConnection = false;
+        
+        // If we're reconnecting but socket is now connected, mark as online
+        if (currentConnectionState === 'reconnecting' && socketConnected && actuallyOnline) {
+          setConnectionStatus('online', { reason: 'Connection restored', silent: true });
+          return;
+        }
         
         // If we're offline but connection is back, reconnect
         if (currentConnectionState === 'offline' && actuallyOnline) {
