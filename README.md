@@ -1,4 +1,4 @@
-# RealTime Clipboard 2.0
+# RealTime-Clipboard 2.0
 
 A powerful real-time web application built with Node.js, Express, and Socket.IO that enables seamless text and file sharing between multiple devices without requiring login or registration. Share text and files instantly with automatic real-time synchronization across all connected devices.
 
@@ -375,18 +375,19 @@ realtime-clipboard/
 ```bash
 HOST=0.0.0.0          # Server host (default: 0.0.0.0)
 PORT=8088             # Server port (default: 8088)
+DATA_DIR=./data       # Data directory for uploads and text (default: ./data)
 ```
 
 ### Command Line Options
 
 ```bash
-node server.js -a <host> -p <port>
+node server.js -a <host> -p <port> --datadir <data_directory>
 ```
 
 Example:
 
 ```bash
-node server.js -a 127.0.0.1 -p 3000
+node server.js -a 127.0.0.1 -p 3000 --datadir /path/to/data
 ```
 
 ## Testing
@@ -514,16 +515,15 @@ node server.js -p 8089
 - Added file preview capabilities
 - Added clipboard image paste
 - New modern UI with Tailwind CSS
-- Improved API with comprehensive documentation
-- Added Docker support
+- Improved API
 - Added test suite
-- Enhanced security features
 
 ### v1.0.0 (Previous)
 
 - Initial release
 - Basic text sharing
 - Simple file upload/download
+- Docker support
 - Real-time synchronization
 
 ## License
