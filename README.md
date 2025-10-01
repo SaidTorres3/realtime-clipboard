@@ -1,6 +1,8 @@
-# RealTime-Clipboard 2.0
+# RealTime-Clipboard 2.1
 
 A powerful real-time web application built with Node.js, Express, and Socket.IO that enables seamless text and file sharing between multiple devices without requiring login or registration. Share text and files instantly with automatic real-time synchronization across all connected devices.
+
+> **New in v2.1**: Simplified API with native curl support! Use `curl -T` for uploads and `curl -X POST` for text updates. See [API-NEW.md](API-NEW.md) for complete documentation.
 
 ## Screenshots
 
@@ -175,22 +177,32 @@ curl http://localhost:8088/myproject
 
 ```bash
 # Default environment
-curl -X PUT -d "your text here" http://localhost:8088
+curl -X POST http://localhost:8088 -d "your text here"
 
 # Custom environment
-curl -X PUT -d "your text here" http://localhost:8088/myproject
+curl -X POST http://localhost:8088/myproject -d "your text here"
 ```
 
 ### File Operations
+
+#### Upload File (using curl -T)
+
+```bash
+# Default environment - single file
+curl http://localhost:8088/document.pdf -T document.pdf
+
+# Custom environment
+curl http://localhost:8088/myproject/document.pdf -T document.pdf
+
+# Upload multiple files (multiple -T flags)
+curl http://localhost:8088/file1.txt -T file1.txt http://localhost:8088/file2.txt -T file2.txt
+```
 
 #### List Files
 
 ```bash
 # Default environment - simple list
 curl http://localhost:8088/files
-
-# With version information
-curl http://localhost:8088/files?versions=true
 
 # JSON format
 curl http://localhost:8088/files?json=true
@@ -199,72 +211,30 @@ curl http://localhost:8088/files?json=true
 curl http://localhost:8088/myproject/files
 ```
 
-#### Upload File
-
-```bash
-# Default environment - single file
-curl -F "file=@document.pdf" http://localhost:8088/upload
-
-# Multiple files
-curl -F "file=@file1.txt" -F "file=@file2.jpg" http://localhost:8088/upload
-
-# Custom environment
-curl -F "file=@document.pdf" http://localhost:8088/myproject/upload
-```
-
 #### Download File
 
 ```bash
-# Default environment - latest version
+# Default environment
 curl http://localhost:8088/files/document.pdf --output document.pdf
 
-# Specific version
-curl http://localhost:8088/files/document.pdf?version=VERSION_ID --output document.pdf
+# Or use -o shorthand
+curl http://localhost:8088/files/document.pdf -o document.pdf
 
 # Custom environment
-curl http://localhost:8088/myproject/files/document.pdf --output document.pdf
+curl http://localhost:8088/myproject/files/document.pdf -o document.pdf
 ```
 
 #### Delete File
 
 ```bash
-# Default environment - delete all versions
+# Default environment - deletes all versions
 curl -X DELETE http://localhost:8088/files/document.pdf
-
-# Delete specific version only
-curl -X DELETE "http://localhost:8088/files/document.pdf?version=VERSION_ID"
 
 # Custom environment
 curl -X DELETE http://localhost:8088/myproject/files/document.pdf
 ```
 
-### File Version Management
-
-#### Get File Version History
-
-```bash
-# Default environment
-curl http://localhost:8088/files/document.pdf/versions
-
-# Custom environment
-curl http://localhost:8088/myproject/files/document.pdf/versions
-```
-
-Returns JSON with complete version history including:
-
-- Version IDs and timestamps
-- File sizes
-- Current version indicator
-
-#### Promote a Version to Current
-
-```bash
-# Default environment
-curl -X PUT http://localhost:8088/files/document.pdf/versions/VERSION_ID/promote
-
-# Custom environment
-curl -X PUT http://localhost:8088/myproject/files/document.pdf/versions/VERSION_ID/promote
-```
+**Note**: The API always deletes all versions of a file. Version-specific operations are only available through the web interface.
 
 ### File Preview Operations
 
@@ -346,6 +316,7 @@ realtime-clipboard/
 │   │   ├── default/        # Default environment files
 │   │   │   └── .versions/  # File version history
 │   │   └── [env-name]/     # Custom environment files
+│   ├── temp/               # Temporary storage for chunked uploads
 │   └── sharedText/         # Text content per environment
 │       ├── default.txt     # Default environment text
 │       └── [env-name].txt  # Custom environment text
@@ -469,6 +440,16 @@ node server.js -p 8089
 - Check browser console for WebSocket connection errors
 - Verify the environment path in the URL
 
+### Migration Guide
+
+If you're using the old API in scripts:
+
+- **Text updates**: Change `curl -X PUT` to `curl -X POST`
+- **File uploads**: Can now use `curl -T file` instead of `curl -F "file=@file"`
+- **Version management**: Use web interface for version-specific operations
+
+See `API-NEW.md` for complete API documentation.
+
 ## What's New in v2.0.0
 
 🎉 **Major Release** - Complete rewrite with modern features!
@@ -501,8 +482,7 @@ node server.js -p 8089
 - Upgraded to Socket.IO v4.7.5
 - Modern ES6+ JavaScript throughout
 - Improved WebSocket stability
-- Better cleanup mechanisms
-- Enhanced environment management
+- Environment management
 
 ## Changelog
 
@@ -517,6 +497,7 @@ node server.js -p 8089
 - New modern UI with Tailwind CSS
 - Improved API
 - Added test suite
+- Changed API commands
 
 ### v1.0.0 (Previous)
 

@@ -765,52 +765,7 @@ app.get('/files', (req, res) => {
   }
 });
 
-// Dynamic route handler for environments
-app.get('/:environment?', (req, res) => {
-  const environmentName = req.params.environment || 'default';
-  const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
-  const envUploadsDir = getEnvironmentUploadsDir(sanitizedEnv, false); // Don't create directory just for viewing
-  const sharedText = getSharedText(sanitizedEnv);
-  
-  const userAgent = req.headers['user-agent'] || '';
-  if (userAgent.includes('curl') || userAgent.includes('wget') || userAgent.includes('PowerShell') || req.query.textonly) {
-    res.send(sharedText + '\n');
-  } else {
-    try {
-      // Use the new versioned file system
-      const versionedFiles = getAllVersionedFiles(sanitizedEnv);
-      
-      res.render('index', { 
-        files: versionedFiles, 
-        environmentName: sanitizedEnv,
-        environmentPath: req.params.environment ? `/${req.params.environment}` : '',
-        sharedText: sharedText
-      });
-    } catch (error) {
-      console.error('Error loading versioned files:', error);
-      res.render('index', { 
-        files: [], 
-        environmentName: sanitizedEnv,
-        environmentPath: req.params.environment ? `/${req.params.environment}` : '',
-        sharedText: sharedText
-      });
-    }
-  }
-});
-
-app.put('/:environment?', (req, res) => {
-  const environmentName = req.params.environment || 'default';
-  const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
-  const [key, newText] = Object.entries(req.body)[0];
-
-  if (typeof key === 'string') {
-    writeSharedTextToFile(sanitizedEnv, key);
-    io.to(sanitizedEnv).emit('textUpdate', key);
-    res.status(200).send('Text updated successfully' + '\n');
-  } else {
-    res.status(400).send('Invalid input' + '\n');
-  }
-});
+// Specific routes moved below - generic /:environment? routes are at the end of the file
 
 app.get('/:environment/files', (req, res) => {
   const environmentName = req.params.environment || 'default';
@@ -1859,99 +1814,65 @@ app.delete('/:environment/files/:filename', (req, res) => {
   const environmentName = req.params.environment || 'default';
   const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
   const filename = sanitizeFilename(req.params.filename);
-  const versionId = req.query.version;
 
   try {
-    if (versionId) {
-      // Delete specific version
-      const remainingMetadata = deleteFileVersion(sanitizedEnv, filename, versionId);
-      io.to(sanitizedEnv).emit('fileUpdate');
-      io.emit('fileUpdate');
-      
-      if (remainingMetadata.versions.length === 0) {
-        res.status(200).send('File completely deleted (all versions removed)\n');
-      } else {
-        res.status(200).send(`Version deleted successfully (${remainingMetadata.versions.length} version${remainingMetadata.versions.length !== 1 ? 's' : ''} remaining)\n`);
-      }
-    } else {
-      // Delete all versions of the file
-      const metadata = readFileMetadata(sanitizedEnv, filename);
-      if (metadata.versions.length === 0) {
-        return res.status(404).send('File not found\n');
-      }
-      
-      // Delete all versions
-      for (const version of [...metadata.versions]) {
-        deleteFileVersion(sanitizedEnv, filename, version.versionId);
-      }
-      
-      io.to(sanitizedEnv).emit('fileUpdate');
-      io.emit('fileUpdate');
-      res.status(200).send('File deleted successfully (all versions removed)\n');
+    // Delete all versions of the file
+    const metadata = readFileMetadata(sanitizedEnv, filename);
+    if (metadata.versions.length === 0) {
+      return res.status(404).send('File not found\n');
     }
+    
+    // Delete all versions
+    for (const version of [...metadata.versions]) {
+      deleteFileVersion(sanitizedEnv, filename, version.versionId);
+    }
+    
+    io.to(sanitizedEnv).emit('fileUpdate');
+    io.emit('fileUpdate');
+    res.status(200).send('File deleted successfully (all versions removed)\n');
     
     cleanupOrphanedVersionFolders(sanitizedEnv);
     // Clean up empty environment after file deletion
     setTimeout(() => cleanupEmptyEnvironment(sanitizedEnv), 1000);
   } catch (error) {
     console.error('Error deleting file:', error);
-    if (error.message === 'Version not found') {
-      res.status(404).send('Version not found\n');
-    } else {
-      res.status(500).send('Error deleting file: ' + error.message + '\n');
-    }
+    res.status(500).send('Error deleting file: ' + error.message + '\n');
   }
 });
 
 // Backward compatibility for root route
 app.delete('/files/:filename', (req, res) => {
   const filename = sanitizeFilename(req.params.filename);
-  const versionId = req.query.version;
 
   try {
-    if (versionId) {
-      // Delete specific version
-      const remainingMetadata = deleteFileVersion('default', filename, versionId);
-      io.to('default').emit('fileUpdate');
-      io.emit('fileUpdate');
-      
-      if (remainingMetadata.versions.length === 0) {
-        res.status(200).send('File completely deleted (all versions removed)\n');
-      } else {
-        res.status(200).send(`Version deleted successfully (${remainingMetadata.versions.length} version${remainingMetadata.versions.length !== 1 ? 's' : ''} remaining)\n`);
-      }
-    } else {
-      // Delete all versions of the file
-      const metadata = readFileMetadata('default', filename);
-      if (metadata.versions.length === 0) {
-        return res.status(404).send('File not found\n');
-      }
-      
-      // Delete all versions
-      for (const version of [...metadata.versions]) {
-        deleteFileVersion('default', filename, version.versionId);
-      }
-      
-      io.to('default').emit('fileUpdate');
-      io.emit('fileUpdate');
-      res.status(200).send('File deleted successfully (all versions removed)\n');
+    // Delete all versions of the file
+    const metadata = readFileMetadata('default', filename);
+    if (metadata.versions.length === 0) {
+      return res.status(404).send('File not found\n');
     }
     
+    // Delete all versions
+    for (const version of [...metadata.versions]) {
+      deleteFileVersion('default', filename, version.versionId);
+    }
+    
+    io.to('default').emit('fileUpdate');
+    io.emit('fileUpdate');
+    res.status(200).send('File deleted successfully (all versions removed)\n');
+    
     cleanupOrphanedVersionFolders('default');
-
     // Note: Don't cleanup default environment automatically
   } catch (error) {
     console.error('Error deleting file:', error);
-    if (error.message === 'Version not found') {
-      res.status(404).send('Version not found\n');
-    } else {
-      res.status(500).send('Error deleting file: ' + error.message + '\n');
-    }
+    res.status(500).send('Error deleting file: ' + error.message + '\n');
   }
 });
 
-// Version management API endpoints
+// Version management API endpoints - DISABLED FOR API ACCESS
+// These endpoints are only accessible through the web interface
+// Uncomment if you want to enable API access to version management
 
+/*
 // Get all versions of a specific file
 app.get('/:environment/files/:filename/versions', (req, res) => {
   const environmentName = req.params.environment || 'default';
@@ -2119,6 +2040,145 @@ app.put('/files/:filename/versions/:versionId/promote', (req, res) => {
     res.status(500).json({ error: 'Failed to promote version: ' + error.message });
   }
 });
+*/
+
+// End of version management API endpoints (disabled for API access)
+
+// ============================================================================
+// GENERIC/CATCH-ALL ROUTES - MUST BE LAST (after all specific routes)
+// ============================================================================
+
+// Dynamic route handler for environments (GET)
+app.get('/:environment?', (req, res) => {
+  const environmentName = req.params.environment || 'default';
+  const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
+  const envUploadsDir = getEnvironmentUploadsDir(sanitizedEnv, false); // Don't create directory just for viewing
+  const sharedText = getSharedText(sanitizedEnv);
+  
+  const userAgent = req.headers['user-agent'] || '';
+  if (userAgent.includes('curl') || userAgent.includes('wget') || userAgent.includes('PowerShell') || req.query.textonly) {
+    res.send(sharedText + '\n');
+  } else {
+    try {
+      // Use the new versioned file system
+      const versionedFiles = getAllVersionedFiles(sanitizedEnv);
+      
+      res.render('index', { 
+        files: versionedFiles, 
+        environmentName: sanitizedEnv,
+        environmentPath: req.params.environment ? `/${req.params.environment}` : '',
+        sharedText: sharedText
+      });
+    } catch (error) {
+      console.error('Error loading versioned files:', error);
+      res.render('index', { 
+        files: [], 
+        environmentName: sanitizedEnv,
+        environmentPath: req.params.environment ? `/${req.params.environment}` : '',
+        sharedText: sharedText
+      });
+    }
+  }
+});
+
+// POST endpoint for text updates (new API)
+app.post('/:environment?', (req, res) => {
+  const environmentName = req.params.environment || 'default';
+  const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
+  
+  // Handle text content
+  let newText = '';
+  if (typeof req.body === 'string') {
+    newText = req.body;
+  } else if (req.body && typeof req.body === 'object') {
+    const entries = Object.entries(req.body);
+    if (entries.length > 0) {
+      const [key, value] = entries[0];
+      newText = typeof key === 'string' ? key : '';
+    }
+  }
+
+  writeSharedTextToFile(sanitizedEnv, newText);
+  io.emit(`textUpdate-${sanitizedEnv}`, newText);
+  res.status(200).send('Text updated successfully\n');
+});
+
+// PUT endpoint for file uploads (curl -T option)
+// curl -T sends: PUT /<filename> or PUT /<environment>/<filename>
+app.put('/:pathSegment/:filename?', (req, res) => {
+  let environmentName = 'default';
+  let fileName = null;
+  
+  // Determine if pathSegment is environment or filename
+  if (req.params.filename) {
+    // Two segments: /:environment/:filename
+    environmentName = req.params.pathSegment;
+    fileName = req.params.filename;
+  } else {
+    // One segment: /:filename (default environment)
+    fileName = req.params.pathSegment;
+  }
+  
+  const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
+  const sanitizedFileName = sanitizeFilename(fileName);
+  
+  if (!sanitizedFileName) {
+    return res.status(400).send('Invalid filename\n');
+  }
+  
+  // Create a temporary file to store the upload
+  const tempFileName = `upload-${Date.now()}-${uuidv4().substring(0, 8)}-${sanitizedFileName}`;
+  const tempFilePath = path.join(tempDir, tempFileName);
+  const writeStream = fs.createWriteStream(tempFilePath);
+  
+  let fileSize = 0;
+  
+  req.on('data', (chunk) => {
+    fileSize += chunk.length;
+    writeStream.write(chunk);
+  });
+  
+  req.on('end', () => {
+    writeStream.end(() => {
+      try {
+        // Create new version of the file
+        const result = createNewVersion(sanitizedEnv, sanitizedFileName, fileSize, tempFilePath);
+        
+        // Clean up temp file
+        fs.unlinkSync(tempFilePath);
+        
+        // Emit socket event for real-time update
+        io.emit(`fileUpload-${sanitizedEnv}`, {
+          fileName: sanitizedFileName,
+          versionInfo: result.versionInfo,
+          metadata: result.metadata
+        });
+        
+        res.status(201).send(`File uploaded successfully: ${sanitizedFileName}\n`);
+      } catch (error) {
+        console.error('Error processing uploaded file:', error);
+        // Clean up temp file on error
+        if (fs.existsSync(tempFilePath)) {
+          fs.unlinkSync(tempFilePath);
+        }
+        res.status(500).send('Error processing uploaded file\n');
+      }
+    });
+  });
+  
+  req.on('error', (error) => {
+    console.error('Error receiving file:', error);
+    writeStream.end();
+    if (fs.existsSync(tempFilePath)) {
+      fs.unlinkSync(tempFilePath);
+    }
+    res.status(500).send('Error receiving file\n');
+  });
+});
+
+// ============================================================================
+// END OF ROUTES - Socket.IO and server startup below
+// ============================================================================
 
 io.on('connection', (socket) => {
   // Join default room initially

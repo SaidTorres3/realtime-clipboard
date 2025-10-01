@@ -741,10 +741,10 @@ describe('curl', () => {
   });
 
   // Test the text update endpoint
-  it('should update text on PUT / and get the updated text on GET /', (done) => {
+  it('should update text on POST / and get the updated text on GET /', (done) => {
     const newText = 'This is the updated text from test/test.js';
     request(app)
-      .put('/')
+      .post('/')
       .set('User-Agent', curlUserAgent)
       .send(newText)
       .expect(200)
@@ -814,6 +814,38 @@ describe('curl', () => {
             expect(uploadedFile).to.not.be.undefined;
             done();
           });
+        });
+      });
+  });
+
+  it('should upload a file using PUT with -T option (curl -T)', (done) => {
+    const testContent = 'Test file for curl -T upload';
+    const testFilePath = path.join(__dirname, 'curl-put-test.txt');
+    fs.writeFileSync(testFilePath, testContent);
+
+    // Read the file content to send as body
+    const fileContent = fs.readFileSync(testFilePath);
+
+    request(app)
+      .put('/curl-put-test.txt')
+      .set('User-Agent', curlUserAgent)
+      .send(fileContent)
+      .expect(201)
+      .end((err, res) => {
+        if (err) return done(err);
+
+        // Clean up test file
+        fs.unlinkSync(testFilePath);
+
+        // Verify file was uploaded
+        const uploadedFilePath = path.join(uploadsDir, 'curl-put-test.txt');
+        fs.access(uploadedFilePath, fs.constants.F_OK, (accessErr) => {
+          expect(accessErr).to.be.null;
+          
+          // Verify content
+          const uploadedContent = fs.readFileSync(uploadedFilePath, 'utf8');
+          expect(uploadedContent).to.equal(testContent);
+          done();
         });
       });
   });
