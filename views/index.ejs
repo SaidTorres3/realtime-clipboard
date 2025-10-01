@@ -1553,7 +1553,25 @@ Start typing your shared content here...
           return;
         }
         
-        const fileItems = files.map(file => {
+        // Sort files by upload date (most recent first).
+        // Prefer currentVersion.uploadedAt, fallback to file.lastModified, otherwise epoch.
+        const sortedFiles = [...files].sort((a, b) => {
+          const getDate = (f) => {
+            if (f && f.currentVersion && f.currentVersion.uploadedAt) {
+              const d = new Date(f.currentVersion.uploadedAt);
+              if (!isNaN(d)) return d;
+            }
+            if (f && f.lastModified) {
+              const d2 = new Date(f.lastModified);
+              if (!isNaN(d2)) return d2;
+            }
+            return new Date(0);
+          };
+
+          return getDate(b) - getDate(a); // newest first
+        });
+
+        const fileItems = sortedFiles.map(file => {
           const fileName = file.originalFileName;
           const isImage = file.isImageFile;
           const isText = file.isTextFile;
@@ -1563,8 +1581,26 @@ Start typing your shared content here...
           const isVideo = file.isVideoFile;
           const totalVersions = file.totalVersions;
           const hasMultipleVersions = totalVersions > 1;
-          const uploadDate = file.currentVersion ? formatDate(file.currentVersion.uploadedAt) : 'Unknown';
-          const fileSize = file.currentVersion ? formatFileSize(file.currentVersion.fileSize) : '';
+
+          // Determine display upload date (prefer currentVersion.uploadedAt, fallback to lastModified)
+          let displayDateRaw = null;
+          if (file && file.currentVersion && file.currentVersion.uploadedAt) {
+            displayDateRaw = file.currentVersion.uploadedAt;
+          } else if (file && file.lastModified) {
+            displayDateRaw = file.lastModified;
+          }
+          // Restore previous compact local date + hour:minute format
+          let uploadDate = 'Unknown';
+          if (displayDateRaw) {
+            const d = new Date(displayDateRaw);
+            uploadDate = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+          }
+
+          // Determine file size (prefer currentVersion.fileSize, fallback to size)
+          const sizeBytes = (file && file.currentVersion && typeof file.currentVersion.fileSize === 'number')
+            ? file.currentVersion.fileSize
+            : (file && typeof file.size === 'number' ? file.size : 0);
+          const fileSize = sizeBytes ? formatFileSize(sizeBytes) : '';
           
           return `
             <div class="file-item ${isImage ? 'has-image' : ''} ${isText ? 'has-text' : ''} ${isPDF ? 'has-pdf' : ''} ${isVideo ? 'has-video' : ''} ${hasMultipleVersions ? 'has-versions' : ''}" 
@@ -1625,7 +1661,7 @@ Start typing your shared content here...
                     ${fileName}
                   </a>
                   <div class="file-metadata">
-                    <span class="file-date">
+                    <span class="file-date" title="${uploadDate}">
                       <i class="fas fa-clock"></i>
                       ${uploadDate}
                     </span>

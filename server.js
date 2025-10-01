@@ -567,6 +567,20 @@ const getAllVersionedFiles = (environmentName) => {
     }
   }
   
+  // Sort files by most recent upload date (newest first).
+  // Prefer metadata.currentVersion.uploadedAt (ISO string). Fallback to filesystem mtime.
+  files.sort((a, b) => {
+    const getDate = (f) => {
+      const v = f.currentVersion && f.currentVersion.uploadedAt ? new Date(f.currentVersion.uploadedAt) : null;
+      if (v && !isNaN(v)) return v;
+      const m = f.lastModified ? new Date(f.lastModified) : null;
+      if (m && !isNaN(m)) return m;
+      return new Date(0);
+    };
+
+    return getDate(b) - getDate(a);
+  });
+
   return files;
 };
 
