@@ -2099,7 +2099,9 @@ app.post('/:environment?', (req, res) => {
   }
 
   writeSharedTextToFile(sanitizedEnv, newText);
-  io.emit(`textUpdate-${sanitizedEnv}`, newText);
+  // Emit to the specific environment room AND broadcast globally for compatibility
+  io.to(sanitizedEnv).emit('textUpdate', newText);
+  io.emit('textUpdate', newText);
   res.status(200).send('Text updated successfully\n');
 });
 
@@ -2147,12 +2149,9 @@ app.put('/:pathSegment/:filename?', (req, res) => {
         // Clean up temp file
         fs.unlinkSync(tempFilePath);
         
-        // Emit socket event for real-time update
-        io.emit(`fileUpload-${sanitizedEnv}`, {
-          fileName: sanitizedFileName,
-          versionInfo: result.versionInfo,
-          metadata: result.metadata
-        });
+        // Emit socket event for real-time update to the specific environment room AND globally
+        io.to(sanitizedEnv).emit('fileUpdate');
+        io.emit('fileUpdate');
         
         res.status(201).send(`File uploaded successfully: ${sanitizedFileName}\n`);
       } catch (error) {
