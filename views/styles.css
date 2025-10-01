@@ -304,6 +304,44 @@ body[data-connection-status="offline"] .editor-wrapper::before {
   font-style: italic;
 }
 
+/* Make textarea scrollbar match the file-list scrollbar */
+#textarea {
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-blue) var(--darker-bg);
+}
+
+/* Webkit browsers */
+#textarea::-webkit-scrollbar {
+  width: 10px;
+}
+
+#textarea::-webkit-scrollbar-track {
+  background   : var(--darker-bg);
+  border-radius: 5px;
+  margin       : 4px 0;
+  border       : 1px solid var(--border-subtle);
+}
+
+#textarea::-webkit-scrollbar-thumb {
+  background   : linear-gradient(180deg, var(--primary-blue) 0%, var(--accent-light-blue) 50%, var(--accent-cyan) 100%);
+  border-radius: 5px;
+  border       : 2px solid var(--darker-bg);
+  box-shadow   : 0 0 6px rgba(37, 99, 235, 0.5), inset 0 0 3px rgba(0, 0, 0, 0.3);
+  transition   : all 0.3s var(--ease-smooth);
+}
+
+#textarea::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--accent-light-blue) 0%, var(--primary-blue) 50%, var(--primary-dark-blue) 100%);
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.8), inset 0 0 6px rgba(0, 0, 0, 0.4);
+  border-color: var(--border-primary);
+}
+
+#textarea::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(180deg, var(--primary-dark-blue), var(--accent-navy));
+  box-shadow: 0 0 8px rgba(37, 99, 235, 1), inset 0 0 8px rgba(0, 0, 0, 0.5);
+}
+
 .sidebar-content {
   height        : 100%;
   display       : flex;
