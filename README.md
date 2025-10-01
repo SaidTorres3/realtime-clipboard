@@ -256,47 +256,6 @@ Access PDF files directly in browser:
 http://localhost:8088/files/document.pdf/pdf-preview
 ```
 
-### Chunked Upload API (for large files)
-
-For files larger than 10MB, the system automatically uses chunked uploads:
-
-1. **Initiate Upload**
-
-```bash
-curl -X POST http://localhost:8088/upload/initiate \
-  -H "Content-Type: application/json" \
-  -d '{"fileName":"largefile.zip","fileSize":104857600,"totalChunks":10}'
-```
-
-2. **Upload Chunks** (repeat for each chunk)
-
-```bash
-curl -X POST http://localhost:8088/upload/chunk \
-  -F "uploadId=UPLOAD_ID" \
-  -F "chunkIndex=0" \
-  -F "chunk=@chunk0.bin"
-```
-
-3. **Complete Upload**
-
-```bash
-curl -X POST http://localhost:8088/upload/complete \
-  -H "Content-Type: application/json" \
-  -d '{"uploadId":"UPLOAD_ID"}'
-```
-
-4. **Check Upload Status**
-
-```bash
-curl http://localhost:8088/upload/status/UPLOAD_ID
-```
-
-5. **Cancel Upload**
-
-```bash
-curl -X DELETE http://localhost:8088/upload/cancel/UPLOAD_ID
-```
-
 ## Project Structure
 
 ```
