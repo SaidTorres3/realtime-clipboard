@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RealTime Clipboard 2.0 - Data Sharing</title>
+    <title><% if (typeof environmentName !== 'undefined' && environmentName && environmentName !== 'default') { %><%= environmentName %> - RealTime-Clipboard<% } else { %>RealTime-Clipboard<% } %></title>
     <script src="/socket.io/socket.io.js"></script>
     <link href="tailwind.min.css" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
