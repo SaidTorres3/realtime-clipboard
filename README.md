@@ -1,8 +1,6 @@
-# RealTime-Clipboard 2.1
+# RealTime-Clipboard 2.0
 
 A powerful real-time web application built with Node.js, Express, and Socket.IO that enables seamless text and file sharing between multiple devices without requiring login or registration. Share text and files instantly with automatic real-time synchronization across all connected devices.
-
-> **New in v2.1**: Simplified API with native curl support! Use `curl -T` for uploads and `curl -X POST` for text updates. See [API-NEW.md](API-NEW.md) for complete documentation.
 
 ## Screenshots
 
@@ -189,13 +187,13 @@ curl -X POST http://localhost:8088/myproject -d "your text here"
 
 ```bash
 # Default environment - single file
-curl http://localhost:8088/document.pdf -T document.pdf
+curl http://localhost:8088 -T document.pdf
 
 # Custom environment
-curl http://localhost:8088/myproject/document.pdf -T document.pdf
+curl http://localhost:8088/myproject -T document.pdf
 
 # Upload multiple files (multiple -T flags)
-curl http://localhost:8088/file1.txt -T file1.txt http://localhost:8088/file2.txt -T file2.txt
+curl http://localhost:8088 -T file1.txt -T file2.txt
 ```
 
 #### List Files
