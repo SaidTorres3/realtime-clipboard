@@ -18,6 +18,12 @@
       <!-- Sidebar -->
       <div class="sidebar">
         <div class="sidebar-content">
+          <!-- Environment Switcher Button (Mobile Only) -->
+          <button class="env-switch-btn mobile-only" onclick="showEnvironmentSwitcher()" title="Switch Environment">
+            <i class="fas fa-exchange-alt"></i>
+            <span>Switch Environment</span>
+          </button>
+
           <!-- Environment Badge -->
           <% if (typeof environmentName !== 'undefined' && environmentName !== 'default') { %>
           <div class="environment-badge">
@@ -278,6 +284,10 @@
                 Live Editor
               </div>
               <div class="flex items-center gap-2">
+                <button class="env-switch-btn" onclick="showEnvironmentSwitcher()" title="Switch Environment">
+                  <i class="fas fa-exchange-alt"></i>
+                  <span class="env-switch-text">Switch Env</span>
+                </button>
                 <div class="connection-status">
                   <div class="status-dot"></div>
                   <span>Connected</span>
@@ -340,6 +350,45 @@ Start typing your shared content here...
         <div class="confirm-buttons">
           <button id="confirm-cancel" class="confirm-btn secondary">Cancel</button>
           <button id="confirm-ok" class="confirm-btn primary">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Environment Switcher Modal -->
+    <div id="env-switcher-overlay" class="confirm-overlay">
+      <div class="confirm-dialog env-switcher-dialog">
+        <div class="confirm-header">
+          <div class="confirm-icon" style="background: linear-gradient(135deg, var(--primary-blue), var(--accent-light-blue));">
+            <i class="fas fa-exchange-alt"></i>
+          </div>
+          <h3 class="confirm-title">Switch Environment</h3>
+        </div>
+        <div class="env-switcher-body">
+          <p class="env-switcher-description">Enter the name of the environment you want to switch to:</p>
+          <div class="env-input-wrapper">
+            <input 
+              type="text" 
+              id="env-name-input" 
+              class="env-name-input" 
+              placeholder="e.g., project-name, team-workspace"
+              autocomplete="off"
+            />
+            <div class="env-input-hint">
+              <i class="fas fa-info-circle"></i>
+              Leave empty for default environment
+            </div>
+          </div>
+          <div class="env-current">
+            <i class="fas fa-map-marker-alt"></i>
+            <span>Current: <strong id="current-env-name">default</strong></span>
+          </div>
+        </div>
+        <div class="confirm-buttons">
+          <button id="env-cancel-btn" class="confirm-btn secondary">Cancel</button>
+          <button id="env-switch-btn" class="confirm-btn primary">
+            <i class="fas fa-arrow-right"></i>
+            Switch
+          </button>
         </div>
       </div>
     </div>
@@ -828,6 +877,70 @@ Start typing your shared content here...
           // Focus the OK button
           setTimeout(() => okBtn.focus(), 100);
         });
+      }
+      
+      // Environment Switcher Functions
+      function showEnvironmentSwitcher() {
+        const overlay = document.getElementById('env-switcher-overlay');
+        const input = document.getElementById('env-name-input');
+        const currentEnvName = document.getElementById('current-env-name');
+        const switchBtn = document.getElementById('env-switch-btn');
+        const cancelBtn = document.getElementById('env-cancel-btn');
+        
+        // Set current environment name
+        currentEnvName.textContent = environmentName;
+        
+        // Clear input
+        input.value = '';
+        
+        // Show dialog with animation
+        overlay.style.display = 'flex';
+        requestAnimationFrame(() => {
+          overlay.classList.add('show');
+          setTimeout(() => input.focus(), 100);
+        });
+        
+        // Handle switch
+        const handleSwitch = () => {
+          const newEnv = input.value.trim();
+          const targetEnv = newEnv === '' ? 'default' : newEnv;
+          
+          // Navigate to new environment
+          const newPath = targetEnv === 'default' ? '/' : `/${encodeURIComponent(targetEnv)}`;
+          window.location.href = newPath;
+        };
+        
+        // Handle cancel
+        const handleCancel = () => {
+          overlay.classList.remove('show');
+          setTimeout(() => {
+            overlay.style.display = 'none';
+          }, 300);
+        };
+        
+        // Event listeners
+        switchBtn.onclick = handleSwitch;
+        cancelBtn.onclick = handleCancel;
+        
+        // Close on overlay click
+        overlay.onclick = (e) => {
+          if (e.target === overlay) {
+            handleCancel();
+          }
+        };
+        
+        // Keyboard support
+        const handleKeydown = (e) => {
+          if (e.key === 'Escape') {
+            handleCancel();
+            document.removeEventListener('keydown', handleKeydown);
+          } else if (e.key === 'Enter') {
+            handleSwitch();
+            document.removeEventListener('keydown', handleKeydown);
+          }
+        };
+        
+        document.addEventListener('keydown', handleKeydown);
       }
       
       // Initialize application
@@ -2603,6 +2716,11 @@ Start typing your shared content here...
         setupImageThumbnails();
         setupTextPreviews();
         setupPDFPreviews();
+        
+        // Force layout recalculation on mobile to fix flex layout issues
+        if (window.innerWidth <= 768) {
+          forceLayoutRecalculation();
+        }
       });
 
       // Initialize immediately since we're in the document
@@ -2613,6 +2731,57 @@ Start typing your shared content here...
       setupImageThumbnails();
       setupTextPreviews();
       setupPDFPreviews();
+      
+      // Force layout recalculation on mobile after initial render
+      if (window.innerWidth <= 768) {
+        setTimeout(() => {
+          forceLayoutRecalculation();
+        }, 100);
+      }
+      
+      // Function to force layout recalculation (fixes mobile flex layout issues)
+      function forceLayoutRecalculation() {
+        const sidebar = document.querySelector('.sidebar');
+        const fileList = document.querySelector('.file-list');
+        const sidebarContent = document.querySelector('.sidebar-content');
+        
+        if (sidebar && fileList && sidebarContent) {
+          // Force reflow by reading offsetHeight
+          const height = sidebar.offsetHeight;
+          
+          // Trigger a repaint by temporarily changing a style
+          sidebar.style.display = 'none';
+          void sidebar.offsetHeight; // Force reflow
+          sidebar.style.display = '';
+          
+          // Also force reflow on file list
+          fileList.style.display = 'none';
+          void fileList.offsetHeight;
+          fileList.style.display = '';
+          
+          console.log('Mobile layout recalculated');
+        }
+      }
+      
+      // Also recalculate on orientation change
+      window.addEventListener('orientationchange', function() {
+        setTimeout(() => {
+          if (window.innerWidth <= 768) {
+            forceLayoutRecalculation();
+          }
+        }, 200);
+      });
+      
+      // Recalculate when window is resized (for when virtual keyboard appears/disappears)
+      let resizeTimer;
+      window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if (window.innerWidth <= 768) {
+            forceLayoutRecalculation();
+          }
+        }, 250);
+      });
     </script>
   </body>
 </html>
