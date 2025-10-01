@@ -315,7 +315,9 @@ Start typing your shared content here...
 • Use Ctrl/Cmd + A to select all text
 • Drag files directly into the sidebar to upload
 • Hold Alt while clicking Delete to skip confirmation
-• Content is automatically saved and synced"
+• Content is automatically saved and synced
+• In case of disaster, wait 10 seconds and use Ctrl + Alt + Z to undo changes or Ctrl + Alt + Y to redo changes
+"
             ></textarea>
           </div>
         </div>
@@ -485,6 +487,159 @@ Start typing your shared content here...
       const connectionStatusEl = document.querySelector('.connection-status');
       const statusDotEl = connectionStatusEl ? connectionStatusEl.querySelector('.status-dot') : null;
       const statusLabelEl = connectionStatusEl ? connectionStatusEl.querySelector('span') : null;
+
+      // Local Storage Version Control System
+      class LocalVersionControl {
+        constructor(environmentName, maxVersions = 35, saveDelay = 10000) {
+          this.storageKey = `rtc_versions_${environmentName}`;
+          this.maxVersions = maxVersions;
+          this.saveDelay = saveDelay;
+          this.saveTimeout = null;
+          this.currentIndex = -1;
+          this.versions = this.loadVersions();
+          this.isNavigating = false; // Flag to prevent saving during navigation
+        }
+
+        loadVersions() {
+          try {
+            const stored = localStorage.getItem(this.storageKey);
+            if (stored) {
+              const data = JSON.parse(stored);
+              this.currentIndex = data.currentIndex || -1;
+              return data.versions || [];
+            }
+          } catch (error) {
+            console.error('Error loading versions from localStorage:', error);
+          }
+          return [];
+        }
+
+        saveToStorage() {
+          try {
+            localStorage.setItem(this.storageKey, JSON.stringify({
+              versions: this.versions,
+              currentIndex: this.currentIndex
+            }));
+          } catch (error) {
+            console.error('Error saving versions to localStorage:', error);
+            // If quota exceeded, remove oldest versions and retry
+            if (error.name === 'QuotaExceededError') {
+              this.versions = this.versions.slice(-Math.floor(this.maxVersions / 2));
+              this.currentIndex = Math.min(this.currentIndex, this.versions.length - 1);
+              try {
+                localStorage.setItem(this.storageKey, JSON.stringify({
+                  versions: this.versions,
+                  currentIndex: this.currentIndex
+                }));
+              } catch (retryError) {
+                console.error('Failed to save even after cleanup:', retryError);
+              }
+            }
+          }
+        }
+
+        scheduleAutoSave(text) {
+          // Don't auto-save during navigation
+          if (this.isNavigating) {
+            return;
+          }
+
+          // Clear existing timeout
+          if (this.saveTimeout) {
+            clearTimeout(this.saveTimeout);
+          }
+
+          // Schedule new save
+          this.saveTimeout = setTimeout(() => {
+            this.saveVersion(text);
+          }, this.saveDelay);
+        }
+
+        saveVersion(text) {
+          // Don't save during navigation
+          if (this.isNavigating) {
+            return;
+          }
+
+          // Don't save if text is the same as the current version
+          if (this.currentIndex >= 0 && this.versions[this.currentIndex] === text) {
+            return;
+          }
+
+          // If we're not at the end of the history, remove all versions after current position
+          if (this.currentIndex < this.versions.length - 1) {
+            this.versions = this.versions.slice(0, this.currentIndex + 1);
+          }
+
+          // Add new version
+          this.versions.push(text);
+          this.currentIndex = this.versions.length - 1;
+
+          // Trim to max versions
+          if (this.versions.length > this.maxVersions) {
+            const removeCount = this.versions.length - this.maxVersions;
+            this.versions = this.versions.slice(removeCount);
+            this.currentIndex = this.versions.length - 1;
+          }
+
+          this.saveToStorage();
+          console.log(`Version saved. Total versions: ${this.versions.length}, Current index: ${this.currentIndex}`);
+        }
+
+        canUndo() {
+          return this.currentIndex > 0;
+        }
+
+        canRedo() {
+          return this.currentIndex < this.versions.length - 1;
+        }
+
+        undo() {
+          if (this.canUndo()) {
+            this.isNavigating = true;
+            this.currentIndex--;
+            this.saveToStorage();
+            const version = this.versions[this.currentIndex];
+            console.log(`Undo to version ${this.currentIndex + 1}/${this.versions.length}`);
+            return version;
+          }
+          return null;
+        }
+
+        redo() {
+          if (this.canRedo()) {
+            this.isNavigating = true;
+            this.currentIndex++;
+            this.saveToStorage();
+            const version = this.versions[this.currentIndex];
+            console.log(`Redo to version ${this.currentIndex + 1}/${this.versions.length}`);
+            return version;
+          }
+          return null;
+        }
+
+        finishNavigation() {
+          this.isNavigating = false;
+        }
+
+        getVersionInfo() {
+          return {
+            current: this.currentIndex + 1,
+            total: this.versions.length,
+            canUndo: this.canUndo(),
+            canRedo: this.canRedo()
+          };
+        }
+
+        // Initialize with current text if no versions exist
+        initialize(text) {
+          if (this.versions.length === 0) {
+            this.versions.push(text);
+            this.currentIndex = 0;
+            this.saveToStorage();
+          }
+        }
+      }
       const STATUS_CLASSES = ['online', 'offline', 'reconnecting'];
       const CONNECTION_CONFIG = {
         online: {
@@ -788,6 +943,9 @@ Start typing your shared content here...
       const currentPath = window.location.pathname;
       const environmentName = currentPath === '/' ? 'default' : currentPath.slice(1);
       const environmentPath = currentPath === '/' ? '' : currentPath;
+      
+      // Initialize Local Version Control for this environment
+      const localVersionControl = new LocalVersionControl(environmentName);
       
       // Application state
       let connectedUsers = 1;
@@ -1476,6 +1634,10 @@ Start typing your shared content here...
             textarea.style.borderLeft = '';
           }, 1000);
         }
+        // Initialize local version control with current text if not already initialized
+        if (localVersionControl.versions.length === 0) {
+          localVersionControl.initialize(text);
+        }
       });
 
       socket.on("userConnected", (data) => {
@@ -1493,6 +1655,8 @@ Start typing your shared content here...
       // Real-time input handling - no debounce for instant synchronization
       textarea.addEventListener("input", () => {
         socket.emit("textChange", textarea.value);
+        // Schedule auto-save to local storage (debounced)
+        localVersionControl.scheduleAutoSave(textarea.value);
       });
 
       socket.on("fileUpdate", () => {
@@ -2718,6 +2882,42 @@ Start typing your shared content here...
 
       // Keyboard shortcuts
       document.addEventListener('keydown', function(e) {
+        // Ctrl+Alt+Z for local undo
+        if (e.ctrlKey && e.altKey && e.key === 'z') {
+          e.preventDefault();
+          const previousVersion = localVersionControl.undo();
+          if (previousVersion !== null) {
+            textarea.value = previousVersion;
+            // Emit to sync with other clients
+            socket.emit("textChange", previousVersion);
+            const info = localVersionControl.getVersionInfo();
+            showNotification(`⏪ Restored version ${info.current}/${info.total}`, 'info');
+            // Allow saving new changes after navigation
+            setTimeout(() => localVersionControl.finishNavigation(), 100);
+          } else {
+            showNotification('⚠️ No more versions to undo', 'warning');
+          }
+          return;
+        }
+
+        // Ctrl+Alt+Y for local redo
+        if (e.ctrlKey && e.altKey && e.key === 'y') {
+          e.preventDefault();
+          const nextVersion = localVersionControl.redo();
+          if (nextVersion !== null) {
+            textarea.value = nextVersion;
+            // Emit to sync with other clients
+            socket.emit("textChange", nextVersion);
+            const info = localVersionControl.getVersionInfo();
+            showNotification(`⏩ Restored version ${info.current}/${info.total}`, 'info');
+            // Allow saving new changes after navigation
+            setTimeout(() => localVersionControl.finishNavigation(), 100);
+          } else {
+            showNotification('⚠️ No more versions to redo', 'warning');
+          }
+          return;
+        }
+
         // Ctrl/Cmd + U for upload
         if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
           e.preventDefault();
