@@ -18,11 +18,20 @@
       <!-- Sidebar -->
       <div class="sidebar">
         <div class="sidebar-content">
-          <!-- Environment Switcher Button (Mobile Only) -->
-          <button class="env-switch-btn mobile-only" onclick="showEnvironmentSwitcher()" title="Switch Environment">
-            <i class="fas fa-exchange-alt"></i>
-            <span>Switch Environment</span>
-          </button>
+          <!-- Mobile Action Buttons Container -->
+          <div class="mobile-action-buttons">
+            <!-- Environment Switcher Button (Mobile Only) -->
+            <button class="env-switch-btn mobile-only" onclick="showEnvironmentSwitcher()" title="Switch Environment">
+              <i class="fas fa-exchange-alt"></i>
+              <span>Switch Environment</span>
+            </button>
+
+            <!-- History Button (Mobile Only) -->
+            <button class="history-btn mobile-only" onclick="showTextHistory()" title="View text history">
+              <i class="fas fa-history"></i>
+              <span>History</span>
+            </button>
+          </div>
 
           <!-- Environment Badge -->
           <% if (typeof environmentName !== 'undefined' && environmentName !== 'default') { %>
@@ -288,6 +297,10 @@
                   <i class="fas fa-exchange-alt"></i>
                   <span class="env-switch-text">Switch Env</span>
                 </button>
+                <button class="history-btn" onclick="showTextHistory()" title="View text history">
+                  <i class="fas fa-history"></i>
+                  <span class="history-btn-text">History</span>
+                </button>
                 <div class="connection-status">
                   <div class="status-dot"></div>
                   <span>Connected</span>
@@ -467,6 +480,28 @@ Start typing your shared content here...
           </h3>
           <div id="version-list" class="version-list">
             <!-- Version items will be populated here -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Text History Modal -->
+    <div id="text-history-modal" class="image-modal">
+      <div class="modal-content" style="max-width: 700px; max-height: 80vh; overflow-y: auto;">
+        <button class="modal-close" onclick="closeTextHistoryModal()">×</button>
+        <div id="text-history-modal-content">
+          <h3 style="color: var(--text-primary); margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-history"></i>
+            Text History
+            <span style="color:gray; width: 90%;">History is stored locally and does not sync across devices</span>
+          </h3>
+          <div id="text-history-list" class="text-history-list">
+            <!-- History items will be populated here -->
+          </div>
+          <div id="text-history-empty" style="text-align: center; color: var(--text-muted); padding: 40px 20px;">
+            <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 15px; display: block; opacity: 0.5;"></i>
+            <p>No history available yet</p>
+            <p style="font-size: 12px; margin-top: 8px;">💡 Start typing to build your history</p>
           </div>
         </div>
       </div>
@@ -1134,6 +1169,185 @@ Start typing your shared content here...
         document.addEventListener('keydown', handleKeydown);
       }
       
+      // Text History Functions
+      function showTextHistory() {
+        const modal = document.getElementById('text-history-modal');
+        const historyList = document.getElementById('text-history-list');
+        const emptyState = document.getElementById('text-history-empty');
+        
+        // Get versions from local storage
+        const versions = localVersionControl.versions || [];
+        
+        if (versions.length === 0) {
+          historyList.style.display = 'none';
+          emptyState.style.display = 'block';
+        } else {
+          emptyState.style.display = 'none';
+          historyList.style.display = 'block';
+          historyList.innerHTML = '';
+          
+          // Display versions in reverse order (newest first)
+          versions.slice().reverse().forEach((versionText, index) => {
+            const versionIndex = versions.length - 1 - index;
+            const isCurrentVersion = versionIndex === localVersionControl.currentIndex;
+            
+            // Create preview text (first 100 characters)
+            const previewText = versionText.substring(0, 100);
+            const displayText = previewText.length < versionText.length ? previewText + '...' : previewText;
+            
+            // Create version item
+            const versionItem = document.createElement('div');
+            versionItem.className = `text-history-item ${isCurrentVersion ? 'current-version' : ''}`;
+            versionItem.innerHTML = `
+              <div class="history-item-content" onclick="showTextVersionPreview(${versionIndex})" style="cursor: pointer; flex: 1;">
+                <div class="history-item-header">
+                  <span class="history-item-number">#${versionIndex + 1}</span>
+                  <span class="history-item-badge ${isCurrentVersion ? 'badge-current' : ''}">
+                    ${isCurrentVersion ? '✓ Current' : ''}
+                  </span>
+                </div>
+                <div class="history-item-preview">${escapeHtml(displayText)}</div>
+                <div class="history-item-size">
+                  <span>${formatBytes(versionText.length)} • ${versionText.split('\n').length} lines</span>
+                </div>
+              </div>
+              <div class="history-item-actions">
+                ${!isCurrentVersion ? `<button class="btn btn-secondary" onclick="event.stopPropagation(); restoreTextVersion(${versionIndex})" title="Restore this version">
+                  <i class="fas fa-undo"></i>
+                </button>` : ''}
+                <button class="btn btn-danger" onclick="event.stopPropagation(); deleteTextVersion(${versionIndex})" title="Delete this version">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            `;
+            
+            historyList.appendChild(versionItem);
+          });
+        }
+        
+        // Show modal
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+      }
+      
+      function closeTextHistoryModal() {
+        const modal = document.getElementById('text-history-modal');
+        modal.classList.remove('show');
+        document.body.style.overflow = '';
+      }
+      
+      function showTextVersionPreview(versionIndex) {
+        const versionText = localVersionControl.versions[versionIndex];
+        if (versionText === undefined) {
+          showNotification('Version not found', 'error');
+          return;
+        }
+        
+        // Create a temporary preview modal
+        const previewModal = document.getElementById('text-modal');
+        const previewContent = document.getElementById('text-modal-content');
+        const previewFilename = document.getElementById('text-modal-filename');
+        const previewInfo = document.getElementById('text-modal-info');
+        
+        // Set content
+        previewFilename.textContent = `Text Version #${versionIndex + 1}`;
+        previewInfo.innerHTML = `<span style="font-size: 12px; color: var(--text-muted);">${formatBytes(versionText.length)} • ${versionText.split('\n').length} lines</span>`;
+        previewContent.textContent = versionText;
+        
+        // Show preview modal
+        previewModal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+      }
+      
+      function restoreTextVersion(versionIndex) {
+        const versionText = localVersionControl.versions[versionIndex];
+        if (versionText === undefined) {
+          showNotification('Version not found', 'error');
+          return;
+        }
+        
+        // Check if it's different from current
+        if (versionIndex === localVersionControl.currentIndex) {
+          showNotification('This is already the current version', 'info');
+          return;
+        }
+        
+        // Set navigation flag to prevent auto-save
+        localVersionControl.isNavigating = true;
+        localVersionControl.currentIndex = versionIndex;
+        localVersionControl.saveToStorage();
+        
+        // Update textarea
+        textarea.value = versionText;
+        socket.emit("textChange", versionText);
+        
+        // Show confirmation
+        const info = localVersionControl.getVersionInfo();
+        showNotification(`✓ Restored version #${versionIndex + 1}/${info.total}`, 'success');
+        
+        // Allow saving new changes after navigation
+        setTimeout(() => localVersionControl.finishNavigation(), 100);
+        
+        // Refresh history modal
+        showTextHistory();
+      }
+      
+      async function deleteTextVersion(versionIndex) {
+        const versionText = localVersionControl.versions[versionIndex];
+        const previewText = versionText.substring(0, 50);
+        
+        const confirmed = await showConfirm(
+          `Delete this version?\n\n"${escapeHtml(previewText)}${versionText.length > 50 ? '...' : ''}"`,
+          'Delete Version',
+          'danger'
+        );
+        
+        if (confirmed) {
+          // Check if deleting current version
+          if (versionIndex === localVersionControl.currentIndex) {
+            showNotification('Cannot delete the current version', 'warning');
+            return;
+          }
+          
+          // Remove version from array
+          localVersionControl.versions.splice(versionIndex, 1);
+          
+          // Adjust current index if necessary
+          if (localVersionControl.currentIndex > versionIndex) {
+            localVersionControl.currentIndex--;
+          }
+          
+          // Save to storage
+          localVersionControl.saveToStorage();
+          
+          showNotification('Version deleted successfully', 'success');
+          
+          // Refresh history modal
+          showTextHistory();
+        }
+      }
+      
+      // Helper function to escape HTML
+      function escapeHtml(text) {
+        const map = {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, m => map[m]);
+      }
+      
+      // Helper function to format bytes
+      function formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      }
+      
       // Initialize application
       function initializeApp() {
         // Set initial textarea disabled state (disable until data and connection ready)
@@ -1167,6 +1381,7 @@ Start typing your shared content here...
           const pdfModal = document.getElementById('pdf-modal');
           const videoModal = document.getElementById('video-modal');
           const versionModal = document.getElementById('version-modal');
+          const textHistoryModal = document.getElementById('text-history-modal');
           
           if (e.target === imageModal) {
             closeImageModal();
@@ -1183,6 +1398,9 @@ Start typing your shared content here...
           if (e.target === versionModal) {
             closeVersionModal();
           }
+          if (e.target === textHistoryModal) {
+            closeTextHistoryModal();
+          }
         });
         
         // Add escape key to close modals
@@ -1191,7 +1409,9 @@ Start typing your shared content here...
             const imageModal = document.getElementById('image-modal');
             const textModal = document.getElementById('text-modal');
             const pdfModal = document.getElementById('pdf-modal');
+            const videoModal = document.getElementById('video-modal');
             const versionModal = document.getElementById('version-modal');
+            const textHistoryModal = document.getElementById('text-history-modal');
             
             if (imageModal.classList.contains('show')) {
               closeImageModal();
@@ -1203,6 +1423,8 @@ Start typing your shared content here...
               closeVideoModal();
             } else if (versionModal.classList.contains('show')) {
               closeVersionModal();
+            } else if (textHistoryModal.classList.contains('show')) {
+              closeTextHistoryModal();
             }
           }
         });

@@ -1,4 +1,4 @@
-# RealTime-Clipboard 2.1
+# RealTime-Clipboard 2.2
 
 A powerful real-time web application built with Node.js, Express, and Socket.IO that enables seamless text and file sharing between multiple devices without requiring login or registration. Share text and files instantly with automatic real-time synchronization across all connected devices.
 
@@ -14,6 +14,7 @@ A powerful real-time web application built with Node.js, Express, and Socket.IO 
 
 - **Zero Configuration**: Directly access the clipboard - no rooms or login required
 - **Real-time Synchronization**: Text and files update instantly across all connected devices
+- **Local history:** Keep track of **your** text changes with local history.
 - **Multi-Device Support**: Share seamlessly between desktops, tablets, and mobile devices
 - **CLI-Friendly**: Full support for `curl`, `wget`, and PowerShell commands
 
