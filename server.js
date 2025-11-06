@@ -1943,20 +1943,28 @@ app.put('/:environment/files/:filename/versions/:versionId/promote', (req, res) 
     
     // Get paths
     const currentFilePath = path.join(getEnvironmentUploadsDir(sanitizedEnv, false), filename);
-    const versionPath = getFileVersionPath(sanitizedEnv, filename, versionId);
+    const versionsDir = getFileVersionsDir(sanitizedEnv, filename);
     
-    if (!fs.existsSync(versionPath)) {
+    // Ensure versions directory exists
+    if (!fs.existsSync(versionsDir)) {
+      fs.mkdirSync(versionsDir, { recursive: true });
+    }
+    
+    // Get the target version file path
+    const targetVersionPath = path.join(versionsDir, version.fileName);
+    
+    if (!fs.existsSync(targetVersionPath)) {
       return res.status(404).json({ error: 'Version file not found' });
     }
     
-    // Move current version to versions directory first
+    // Save current version to versions directory before replacing it
     if (metadata.currentVersion && fs.existsSync(currentFilePath)) {
-      const currentVersionPath = getFileVersionPath(sanitizedEnv, filename, metadata.currentVersion.versionId);
+      const currentVersionPath = path.join(versionsDir, metadata.currentVersion.fileName);
       fs.copyFileSync(currentFilePath, currentVersionPath);
     }
     
     // Copy the target version to current location
-    fs.copyFileSync(versionPath, currentFilePath);
+    fs.copyFileSync(targetVersionPath, currentFilePath);
     
     // Update metadata
     metadata.currentVersion = version;
@@ -2002,20 +2010,28 @@ app.put('/files/:filename/versions/:versionId/promote', (req, res) => {
     
     // Get paths
     const currentFilePath = path.join(getEnvironmentUploadsDir('default', false), filename);
-    const versionPath = getFileVersionPath('default', filename, versionId);
+    const versionsDir = getFileVersionsDir('default', filename);
     
-    if (!fs.existsSync(versionPath)) {
+    // Ensure versions directory exists
+    if (!fs.existsSync(versionsDir)) {
+      fs.mkdirSync(versionsDir, { recursive: true });
+    }
+    
+    // Get the target version file path
+    const targetVersionPath = path.join(versionsDir, version.fileName);
+    
+    if (!fs.existsSync(targetVersionPath)) {
       return res.status(404).json({ error: 'Version file not found' });
     }
     
-    // Move current version to versions directory first
+    // Save current version to versions directory before replacing it
     if (metadata.currentVersion && fs.existsSync(currentFilePath)) {
-      const currentVersionPath = getFileVersionPath('default', filename, metadata.currentVersion.versionId);
+      const currentVersionPath = path.join(versionsDir, metadata.currentVersion.fileName);
       fs.copyFileSync(currentFilePath, currentVersionPath);
     }
     
     // Copy the target version to current location
-    fs.copyFileSync(versionPath, currentFilePath);
+    fs.copyFileSync(targetVersionPath, currentFilePath);
     
     // Update metadata
     metadata.currentVersion = version;
