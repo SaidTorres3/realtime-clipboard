@@ -95,7 +95,8 @@ const getEnvironmentName = (req) => {
     routePath = pathParts[0];
   }
   
-  return routePath === '' || routePath === 'upload' ? 'default' : sanitizeFilename(routePath) || 'default';
+  const envName = routePath === '' || routePath === 'upload' ? 'default' : sanitizeFilename(routePath) || 'default';
+  return envName.toLowerCase();
 };
 
 // Helper function to check if file is an image
@@ -2295,7 +2296,7 @@ io.on('connection', (socket) => {
   let currentEnvironment = null;
 
   socket.on('joinEnvironment', (environmentName) => {
-    const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
+    const sanitizedEnv = (sanitizeFilename(environmentName) || 'default').toLowerCase();
     
     // If already in an environment, leave it first
     if (currentEnvironment !== null) {
