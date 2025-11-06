@@ -2291,43 +2291,53 @@ app.put('/:pathSegment/:filename?', (req, res) => {
 // ============================================================================
 
 io.on('connection', (socket) => {
-  // Join default room initially
-  let currentEnvironment = 'default';
-  socket.join(currentEnvironment);
-  socket.emit('textUpdate', getSharedText(currentEnvironment));
+  // Start with no environment - will be set when client calls joinEnvironment
+  let currentEnvironment = null;
 
   socket.on('joinEnvironment', (environmentName) => {
     const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
-    if (currentEnvironment !== sanitizedEnv) {
+    
+    // If already in an environment, leave it first
+    if (currentEnvironment !== null) {
       socket.leave(currentEnvironment);
-      socket.join(sanitizedEnv);
-      currentEnvironment = sanitizedEnv;
-      socket.emit('textUpdate', getSharedText(sanitizedEnv));
     }
+    
+    // Join the new environment
+    socket.join(sanitizedEnv);
+    currentEnvironment = sanitizedEnv;
+    
+    // Emit the text for this environment
+    socket.emit('textUpdate', getSharedText(sanitizedEnv));
   });
 
   socket.on('textChange', (text) => {
-    writeSharedTextToFile(currentEnvironment, text);
-    socket.broadcast.to(currentEnvironment).emit('textUpdate', text);
+    // Ensure client has joined an environment before processing
+    if (currentEnvironment !== null) {
+      writeSharedTextToFile(currentEnvironment, text);
+      socket.broadcast.to(currentEnvironment).emit('textUpdate', text);
+    }
   });
 
   socket.on('fileUpdate', () => {
-    const envUploadsDir = getEnvironmentUploadsDir(currentEnvironment, false);
-    if (fs.existsSync(envUploadsDir)) {
-      fs.readdir(envUploadsDir, (err, files) => {
-        if (err) {
-          console.error('Error reading environment files:', err);
-          files = [];
-        }
-        io.to(currentEnvironment).emit('fileList', files);
+    // Ensure client has joined an environment before processing
+    if (currentEnvironment !== null) {
+      const envUploadsDir = getEnvironmentUploadsDir(currentEnvironment, false);
+      if (fs.existsSync(envUploadsDir)) {
+        fs.readdir(envUploadsDir, (err, files) => {
+          if (err) {
+            console.error('Error reading environment files:', err);
+            files = [];
+          }
+          io.to(currentEnvironment).emit('fileList', files);
+          // Also emit a general fileUpdate for better compatibility
+          io.to(currentEnvironment).emit('fileUpdate');
+        });
+      } else {
+        // Directory doesn't exist, emit empty file list
+        io.to(currentEnvironment).emit('fileList', []);
         // Also emit a general fileUpdate for better compatibility
         io.to(currentEnvironment).emit('fileUpdate');
-      });
-    } else {
-      // Directory doesn't exist, emit empty file list
-      io.to(currentEnvironment).emit('fileList', []);
-      // Also emit a general fileUpdate for better compatibility
-      io.to(currentEnvironment).emit('fileUpdate');
+      }
     }
   });
 });
