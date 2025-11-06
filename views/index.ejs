@@ -319,6 +319,14 @@ Start typing your shared content here...
 • In case of disaster, wait 10 seconds and use Ctrl + Alt + Z to undo changes or Ctrl + Alt + Y to redo changes
 "
             ></textarea>
+            <!-- Loading overlay for textarea -->
+            <div id="textarea-loading-overlay" class="textarea-loading-overlay">
+              <div class="loading-spinner-container">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading your data...</div>
+                <div class="loading-subtext">Connecting and synchronizing content</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -724,6 +732,9 @@ Start typing your shared content here...
 
   // Check initial connection state - prioritize browser offline detection
   const initialConnectionState = !navigator.onLine ? 'offline' : (socket.connected ? 'online' : 'reconnecting');
+  if (socket.connected) {
+    hasConnection = true;
+  }
   setConnectionStatus(initialConnectionState, { silent: true, suppressNext: true });
 
       socket.on('connect', async () => {
@@ -731,6 +742,8 @@ Start typing your shared content here...
         try {
           const actuallyOnline = await checkRealConnection();
           if (actuallyOnline) {
+            hasConnection = true;
+            updateTextareaState();
             setConnectionStatus('online');
           }
         } catch (error) {
@@ -740,6 +753,8 @@ Start typing your shared content here...
       });
 
       socket.on('disconnect', (reason) => {
+        hasConnection = false;
+        updateTextareaState();
         const state = navigator.onLine ? 'reconnecting' : 'offline';
         setConnectionStatus(state, { reason });
       });
@@ -954,6 +969,24 @@ Start typing your shared content here...
   // Track if image preview modal is currently open to prevent accidental re-uploads
   let imagePreviewOpen = false;
       
+      // Loading state management
+      let isDataLoading = true; // Initially true until first textUpdate is received
+      let hasConnection = false; // Initially false until connection is established
+      
+      // Helper function to update textarea disabled state based on loading status
+      function updateTextareaState() {
+        const shouldDisable = isDataLoading || !hasConnection;
+        textarea.disabled = shouldDisable;
+        
+        // Show/hide loading overlay
+        const loadingOverlay = document.getElementById('textarea-loading-overlay');
+        if (shouldDisable && isDataLoading) {
+          loadingOverlay.classList.add('show');
+        } else {
+          loadingOverlay.classList.remove('show');
+        }
+      }
+      
       // Custom Confirmation Dialog System
       function showConfirm(message, title = 'Confirm Action', type = 'warning') {
         return new Promise((resolve) => {
@@ -1103,6 +1136,9 @@ Start typing your shared content here...
       
       // Initialize application
       function initializeApp() {
+        // Set initial textarea disabled state (disable until data and connection ready)
+        updateTextareaState();
+        
         // Join the appropriate environment room
         socket.emit('joinEnvironment', environmentName);
         
@@ -1638,6 +1674,9 @@ Start typing your shared content here...
         if (localVersionControl.versions.length === 0) {
           localVersionControl.initialize(text);
         }
+        // Mark data as loaded
+        isDataLoading = false;
+        updateTextareaState();
       });
 
       socket.on("userConnected", (data) => {
