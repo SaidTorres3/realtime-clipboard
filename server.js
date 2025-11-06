@@ -1868,11 +1868,7 @@ app.delete('/files/:filename', (req, res) => {
   }
 });
 
-// Version management API endpoints - DISABLED FOR API ACCESS
-// These endpoints are only accessible through the web interface
-// Uncomment if you want to enable API access to version management
-
-/*
+// Version management API endpoints
 // Get all versions of a specific file
 app.get('/:environment/files/:filename/versions', (req, res) => {
   const environmentName = req.params.environment || 'default';
@@ -2040,9 +2036,108 @@ app.put('/files/:filename/versions/:versionId/promote', (req, res) => {
     res.status(500).json({ error: 'Failed to promote version: ' + error.message });
   }
 });
-*/
 
-// End of version management API endpoints (disabled for API access)
+// Delete a specific version
+app.delete('/:environment/files/:filename/versions/:versionId', (req, res) => {
+  const environmentName = req.params.environment || 'default';
+  const sanitizedEnv = sanitizeFilename(environmentName) || 'default';
+  const filename = sanitizeFilename(req.params.filename);
+  const versionId = req.params.versionId;
+  
+  try {
+    const metadata = readFileMetadata(sanitizedEnv, filename);
+    const version = metadata.versions.find(v => v.versionId === versionId);
+    
+    if (!version) {
+      return res.status(404).json({ error: 'Version not found' });
+    }
+    
+    // Cannot delete if it's the only version
+    if (metadata.versions.length === 1) {
+      return res.status(400).json({ error: 'Cannot delete the only version' });
+    }
+    
+    // Cannot delete current version
+    if (version.versionId === metadata.currentVersion?.versionId) {
+      return res.status(400).json({ error: 'Cannot delete current version' });
+    }
+    
+    const versionPath = getFileVersionPath(sanitizedEnv, filename, versionId);
+    
+    if (fs.existsSync(versionPath)) {
+      fs.unlinkSync(versionPath);
+    }
+    
+    // Update metadata - remove the version
+    metadata.versions = metadata.versions.filter(v => v.versionId !== versionId);
+    writeFileMetadata(sanitizedEnv, filename, metadata);
+    
+    // Emit update
+    io.to(sanitizedEnv).emit('fileUpdate');
+    io.emit('fileUpdate');
+    
+    res.json({
+      success: true,
+      message: 'Version deleted',
+      totalVersions: metadata.versions.length
+    });
+    
+  } catch (error) {
+    console.error('Error deleting version:', error);
+    res.status(500).json({ error: 'Failed to delete version: ' + error.message });
+  }
+});
+
+// Backward compatibility for delete endpoint
+app.delete('/files/:filename/versions/:versionId', (req, res) => {
+  const filename = sanitizeFilename(req.params.filename);
+  const versionId = req.params.versionId;
+  
+  try {
+    const metadata = readFileMetadata('default', filename);
+    const version = metadata.versions.find(v => v.versionId === versionId);
+    
+    if (!version) {
+      return res.status(404).json({ error: 'Version not found' });
+    }
+    
+    // Cannot delete if it's the only version
+    if (metadata.versions.length === 1) {
+      return res.status(400).json({ error: 'Cannot delete the only version' });
+    }
+    
+    // Cannot delete current version
+    if (version.versionId === metadata.currentVersion?.versionId) {
+      return res.status(400).json({ error: 'Cannot delete current version' });
+    }
+    
+    const versionPath = getFileVersionPath('default', filename, versionId);
+    
+    if (fs.existsSync(versionPath)) {
+      fs.unlinkSync(versionPath);
+    }
+    
+    // Update metadata - remove the version
+    metadata.versions = metadata.versions.filter(v => v.versionId !== versionId);
+    writeFileMetadata('default', filename, metadata);
+    
+    // Emit update
+    io.to('default').emit('fileUpdate');
+    io.emit('fileUpdate');
+    
+    res.json({
+      success: true,
+      message: 'Version deleted',
+      totalVersions: metadata.versions.length
+    });
+    
+  } catch (error) {
+    console.error('Error deleting version:', error);
+    res.status(500).json({ error: 'Failed to delete version: ' + error.message });
+  }
+});
+
+// End of version management API endpoints
 
 // ============================================================================
 // GENERIC/CATCH-ALL ROUTES - MUST BE LAST (after all specific routes)
