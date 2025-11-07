@@ -4,8 +4,8 @@ A powerful real-time web application built with Node.js, Express, and Socket.IO 
 
 ## Screenshots
 
-<img src="/images/frontend.png" width="800">
-<img src="/images/phone.png" width="300">
+<img src="/images/v2.2.0/frontend.png" width="800">
+<img src="/images/v2.2.0/phone.png" width="300">
 <img src="/images/batch.png" width="800">
 
 ## Features
