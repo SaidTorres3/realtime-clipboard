@@ -313,7 +313,7 @@
             </div>
             <textarea
               id="textarea"
-              placeholder="🚀 Welcome to RealTime Clipboard 2.0!
+              placeholder="🚀 Welcome to RealTime Clipboard 2.2!
 
 Start typing your shared content here...
 
@@ -780,6 +780,8 @@ Start typing your shared content here...
             hasConnection = true;
             updateTextareaState();
             setConnectionStatus('online');
+            // Re-join environment to ensure we receive updates
+            socket.emit('joinEnvironment', environmentName);
           }
         } catch (error) {
           // If connection test fails, stay in reconnecting
@@ -1010,12 +1012,13 @@ Start typing your shared content here...
       
       // Helper function to update textarea disabled state based on loading status
       function updateTextareaState() {
-        const shouldDisable = isDataLoading || !hasConnection;
+        // Allow editing even when offline, as long as initial data has loaded
+        const shouldDisable = isDataLoading;
         textarea.disabled = shouldDisable;
         
         // Show/hide loading overlay
         const loadingOverlay = document.getElementById('textarea-loading-overlay');
-        if (shouldDisable && isDataLoading) {
+        if (shouldDisable) {
           loadingOverlay.classList.add('show');
         } else {
           loadingOverlay.classList.remove('show');
@@ -1429,7 +1432,7 @@ Start typing your shared content here...
           }
         });
         
-        console.log('%c🚀 RealTime Clipboard 2.0!', 
+        console.log('%c🚀 RealTime Clipboard 2.2!', 
           'color: #2563eb; font-size: 16px; font-weight: bold;');
       }
 
@@ -1882,16 +1885,57 @@ Start typing your shared content here...
         }
       });
 
+      // Track the last text we received from the server to detect local changes
+      let lastServerText = null;
+
       // Socket event handlers
       socket.on("textUpdate", (text) => {
-        if (textarea.value !== text) {
-          textarea.value = text;
-          // Subtle visual feedback without complex animations
-          textarea.style.borderLeft = '3px solid var(--primary-blue)';
-          setTimeout(() => {
-            textarea.style.borderLeft = '';
-          }, 1000);
+        // If this is the first update (initial load)
+        if (lastServerText === null) {
+          lastServerText = text;
+          
+          // If we have local content that differs from server (e.g. typed while offline)
+          // and we are not in the initial loading state (meaning we had a session going)
+          if (!isDataLoading && textarea.value !== text) {
+            console.log("Conflict detected on reconnect. Sending local changes.");
+            // We have local changes that haven't been synced.
+            // Send our local version to the server instead of overwriting it.
+            socket.emit("textChange", textarea.value);
+            // Update lastServerText to match our local version, assuming server will accept it
+            lastServerText = textarea.value;
+            return;
+          }
+          
+          // Otherwise, it's a fresh load or we are in sync, so accept server text
+          if (textarea.value !== text) {
+            textarea.value = text;
+          }
+        } else {
+          // Subsequent updates
+          if (textarea.value === lastServerText) {
+            // User hasn't changed anything since last update. Safe to apply.
+            textarea.value = text;
+            lastServerText = text;
+            
+            // Subtle visual feedback without complex animations
+            textarea.style.borderLeft = '3px solid var(--primary-blue)';
+            setTimeout(() => {
+              textarea.style.borderLeft = '';
+            }, 1000);
+          } else if (text !== textarea.value) {
+            // User has changed something locally that hasn't been synced yet.
+            // Conflict: Server has 'text', we have 'textarea.value'.
+            // We prioritize local changes to prevent data loss.
+            console.log("Incoming update ignored due to local changes. Resyncing.");
+            socket.emit("textChange", textarea.value);
+            lastServerText = textarea.value;
+            return;
+          } else {
+            // Text matches, we are in sync.
+            lastServerText = text;
+          }
         }
+
         // Initialize local version control with current text if not already initialized
         if (localVersionControl.versions.length === 0) {
           localVersionControl.initialize(text);
