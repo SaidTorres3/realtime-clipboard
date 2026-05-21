@@ -1233,7 +1233,7 @@ body[data-connection-status="offline"] .editor-wrapper::before {
     top: auto !important;
     bottom: 0 !important;
     transform: translate(-50%, 50%) !important;
-    z-index: 99999 !important;
+    z-index: 9999 !important;
   }
 
   .sidebar-toggle:hover {
@@ -1249,7 +1249,7 @@ body[data-connection-status="offline"] .editor-wrapper::before {
     background: linear-gradient(135deg, var(--accent-navy), var(--card-bg)) !important;
     border-color: var(--primary-blue) !important;
     box-shadow: var(--shadow-strong), var(--shadow-glow) !important;
-    z-index: 99999 !important;
+    z-index: 9999 !important;
   }
 
   body.sidebar-collapsed .sidebar-toggle:hover {
