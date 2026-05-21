@@ -1,6 +1,6 @@
 {
   "name": "realtime-clipboard",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "Real-time clipboard sharing platform with modern design and enhanced performance",
   "main": "index.js",
   "type": "module",
