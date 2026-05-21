@@ -1,4 +1,4 @@
-# RealTime-Clipboard 2.2
+# RealTime-Clipboard 2.3
 
 A powerful real-time web application built with Node.js, Express, and Socket.IO that enables seamless text and file sharing between multiple devices without requiring login or registration. Share text and files instantly with automatic real-time synchronization across all connected devices.
 
