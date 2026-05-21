@@ -951,7 +951,8 @@ body[data-connection-status="offline"] .editor-wrapper::before {
     min-height: 52vh;
     max-height: 52vh;
     flex-shrink: 0;
-    overflow  : hidden;
+    overflow  : visible !important;
+    transition: height 0.3s var(--ease-smooth), min-height 0.3s var(--ease-smooth), max-height 0.3s var(--ease-smooth);
   }
 
   .resizer {
@@ -1206,6 +1207,35 @@ body[data-connection-status="offline"] .editor-wrapper::before {
 
   .environment-name {
     font-size: 13px;
+  }
+
+  /* Position toggle button correctly on mobile */
+  .sidebar-toggle {
+    left: 50% !important;
+    top: auto !important;
+    bottom: 0 !important;
+    transform: translate(-50%, 50%) !important;
+    z-index: 99999 !important;
+  }
+
+  .sidebar-toggle:hover {
+    transform: translate(-50%, 50%) scale(1.1) !important;
+  }
+
+  /* When sidebar is collapsed on mobile, position at the bottom center */
+  body.sidebar-collapsed .sidebar-toggle {
+    left: 50% !important;
+    top: auto !important;
+    bottom: 80px !important;
+    transform: translateX(-50%) !important;
+    background: linear-gradient(135deg, var(--accent-navy), var(--card-bg)) !important;
+    border-color: var(--primary-blue) !important;
+    box-shadow: var(--shadow-strong), var(--shadow-glow) !important;
+    z-index: 99999 !important;
+  }
+
+  body.sidebar-collapsed .sidebar-toggle:hover {
+    transform: translateX(-50%) scale(1.1) !important;
   }
 }
 
@@ -2645,3 +2675,89 @@ body[data-connection-status="offline"] .editor-wrapper::before {
   background: var(--danger-blue);
   color     : white;
 }
+
+/* Sidebar Collapse & Toggle System */
+.sidebar {
+  transition: width 0.3s var(--ease-smooth), min-width 0.3s var(--ease-smooth), height 0.3s var(--ease-smooth), min-height 0.3s var(--ease-smooth), max-height 0.3s var(--ease-smooth), padding 0.3s var(--ease-smooth), border-color 0.3s var(--ease-smooth), box-shadow 0.3s var(--ease-smooth);
+}
+
+body.sidebar-collapsed .sidebar {
+  width: 0 !important;
+  min-width: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  padding: 0 !important;
+  border-right: none !important;
+  border-top: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+}
+
+body.sidebar-collapsed .sidebar::before {
+  display: none !important;
+}
+
+body.sidebar-collapsed .resizer {
+  display: none !important;
+}
+
+body.sidebar-collapsed .content-area {
+  height: 100vh !important;
+  min-height: 100vh !important;
+  max-height: 100vh !important;
+}
+
+/* Sidebar Toggle Button */
+.sidebar-toggle {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translate(-80%, -50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--card-bg);
+  border: 2px solid var(--border-primary);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 100;
+  box-shadow: var(--shadow-medium);
+  transition: left 0.3s var(--ease-smooth), transform 0.3s var(--ease-smooth), background 0.3s var(--ease-smooth), border-color 0.3s var(--ease-smooth), box-shadow 0.3s var(--ease-smooth);
+}
+
+.sidebar-toggle:hover {
+  background: linear-gradient(135deg, var(--primary-blue), var(--accent-light-blue));
+  border-color: var(--primary-blue);
+  color: white;
+  box-shadow: var(--shadow-glow), var(--shadow-medium);
+  transform: translate(-80%, -50%) scale(1.1);
+}
+
+.sidebar-toggle i {
+  font-size: 12px;
+  transition: transform 0.3s var(--ease-smooth);
+}
+
+/* When sidebar is collapsed, position the toggle button on the left edge */
+body.sidebar-collapsed .sidebar-toggle {
+  left: 10px;
+  transform: translateY(-50%);
+  box-shadow: var(--shadow-strong), var(--shadow-glow);
+  border-color: var(--primary-blue);
+  background: linear-gradient(135deg, var(--accent-navy), var(--card-bg));
+}
+
+body.sidebar-collapsed .sidebar-toggle:hover {
+  transform: scale(1.1) translateY(-50%);
+}
+
+/* Transitioning state to disable pointer events during animation */
+.sidebar-transitioning {
+  pointer-events: none !important;
+}
+

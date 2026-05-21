@@ -284,6 +284,11 @@
 
       <!-- Main Content Area -->
       <div class="content-area">
+        <!-- Sidebar Toggle Button -->
+        <button id="sidebar-toggle" class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">
+          <i class="fas fa-chevron-left" id="sidebar-toggle-icon"></i>
+        </button>
+
         <!-- Main Editor -->
         <div class="main-editor">
           <div class="editor-wrapper">
@@ -2897,6 +2902,93 @@ Start typing your shared content here...
         });
       }
 
+      // Sidebar Collapse & Toggle System functions
+      function toggleSidebar() {
+        const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+        
+        // Add transitioning class for smooth animation
+        sidebar.classList.add('sidebar-transitioning');
+        
+        if (isCollapsed) {
+          // Expand
+          document.body.classList.remove('sidebar-collapsed');
+          localStorage.setItem('sidebarCollapsed', 'false');
+          
+          if (isMobileLayout()) {
+            sidebar.style.width = '';
+            sidebar.style.minWidth = '';
+          } else {
+            const lastWidth = sidebar.getAttribute('data-last-width') || '400px';
+            sidebar.style.width = lastWidth;
+          }
+          
+          // Update icon immediately
+          const icon = document.getElementById('sidebar-toggle-icon');
+          if (icon) {
+            icon.className = isMobileLayout() ? 'fas fa-chevron-down' : 'fas fa-chevron-left';
+          }
+          
+          // Wait for transition to finish, then clear min-width and transitioning class
+          setTimeout(() => {
+            if (!document.body.classList.contains('sidebar-collapsed')) {
+              sidebar.style.minWidth = '';
+              sidebar.classList.remove('sidebar-transitioning');
+            }
+          }, 300);
+        } else {
+          // Collapse
+          if (!isMobileLayout()) {
+            const currentWidth = sidebar.style.width || '400px';
+            sidebar.setAttribute('data-last-width', currentWidth);
+          }
+          
+          document.body.classList.add('sidebar-collapsed');
+          localStorage.setItem('sidebarCollapsed', 'true');
+          
+          sidebar.style.minWidth = '0px';
+          sidebar.style.width = '0px';
+          
+          // Update icon immediately
+          const icon = document.getElementById('sidebar-toggle-icon');
+          if (icon) {
+            icon.className = isMobileLayout() ? 'fas fa-chevron-up' : 'fas fa-chevron-right';
+          }
+          
+          setTimeout(() => {
+            sidebar.classList.remove('sidebar-transitioning');
+          }, 300);
+        }
+      }
+
+      function initializeSidebarState() {
+        const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+        const savedWidth = localStorage.getItem('sidebarWidth') || '400px';
+        
+        if (isCollapsed) {
+          document.body.classList.add('sidebar-collapsed');
+          sidebar.style.width = '0px';
+          sidebar.style.minWidth = '0px';
+          sidebar.setAttribute('data-last-width', savedWidth);
+          const icon = document.getElementById('sidebar-toggle-icon');
+          if (icon) {
+            icon.className = isMobileLayout() ? 'fas fa-chevron-up' : 'fas fa-chevron-right';
+          }
+        } else {
+          document.body.classList.remove('sidebar-collapsed');
+          if (isMobileLayout()) {
+            sidebar.style.width = '';
+            sidebar.style.minWidth = '';
+          } else {
+            sidebar.style.width = savedWidth;
+          }
+          sidebar.setAttribute('data-last-width', savedWidth);
+          const icon = document.getElementById('sidebar-toggle-icon');
+          if (icon) {
+            icon.className = isMobileLayout() ? 'fas fa-chevron-down' : 'fas fa-chevron-left';
+          }
+        }
+      }
+
       // Enhanced resizer with better performance for VNC and touch support for mobile
       let isResizing = false;
       let previousLayoutWasMobile = isMobileLayout();
@@ -2928,6 +3020,17 @@ Start typing your shared content here...
           } else {
             // Switching to mobile: remove desktop width styles
             sidebar.style.width = '';
+          }
+          
+          // Update icon class on layout transition
+          const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+          const icon = document.getElementById('sidebar-toggle-icon');
+          if (icon) {
+            if (isCollapsed) {
+              icon.className = currentlyMobile ? 'fas fa-chevron-up' : 'fas fa-chevron-right';
+            } else {
+              icon.className = currentlyMobile ? 'fas fa-chevron-down' : 'fas fa-chevron-left';
+            }
           }
           
           previousLayoutWasMobile = currentlyMobile;
@@ -3036,6 +3139,13 @@ Start typing your shared content here...
         document.removeEventListener("mouseup", stopResize);
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
+        
+        // Save final width to localStorage
+        const finalWidth = sidebar.style.width;
+        if (finalWidth && finalWidth !== '0px') {
+          localStorage.setItem('sidebarWidth', finalWidth);
+          sidebar.setAttribute('data-last-width', finalWidth);
+        }
       }
       
       function stopResizeMobile() {
@@ -3251,6 +3361,7 @@ Start typing your shared content here...
       // Initialize everything when DOM is loaded
       document.addEventListener('DOMContentLoaded', function() {
         initializeApp();
+        initializeSidebarState();
         attachDeleteEventListeners();
         updateFileCounts();
         updateFileIcons();
@@ -3266,6 +3377,7 @@ Start typing your shared content here...
 
       // Initialize immediately since we're in the document
       initializeApp();
+      initializeSidebarState();
       attachDeleteEventListeners();
       updateFileCounts();
       updateFileIcons();
