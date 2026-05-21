@@ -906,17 +906,18 @@ body[data-connection-status="offline"] .editor-wrapper::before {
     padding     : 16px;
     flex-shrink : 0;
     position    : relative;
+    overflow    : visible !important; /* Ensure absolute positioned resizer isn't clipped */
   }
 
-  /* Make resizer horizontal and more touch-friendly on mobile */
+  /* Make resizer horizontal and more touch-friendly on mobile with a balanced hitbox */
   .resizer {
     display: block !important;
     width: 100%;
-    height: 20px;
-    background: linear-gradient(180deg, transparent 0%, var(--primary-blue) 50%, transparent 100%);
+    height: 24px; /* Balanced 24px touch target */
+    background: transparent;
     cursor: ns-resize;
     position: absolute;
-    top: -10px;
+    top: -16px; /* Extends 16px above and 8px below the divider line */
     left: 0;
     right: 0;
     z-index: 10;
@@ -924,25 +925,46 @@ body[data-connection-status="offline"] .editor-wrapper::before {
     touch-action: none;
   }
 
-  .resizer:hover,
-  .resizer:active {
-    background: linear-gradient(180deg, transparent 0%, var(--primary-dark-blue) 50%, transparent 100%);
-    opacity: 1;
-    box-shadow: 0 0 15px rgba(37, 99, 235, 0.4);
+  /* Slim glowing border line positioned exactly on the divider (8px from bottom edge of the resizer) */
+  .resizer::after {
+    content: '';
+    position: absolute;
+    bottom: 8px; /* Aligned exactly on the divider line */
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--primary-blue);
+    transform: translateY(50%); /* Centered on the divider line */
+    box-shadow: 0 0 8px rgba(37, 99, 235, 0.3);
+    transition: background 0.2s, box-shadow 0.2s;
   }
 
-  /* Add visual indicator for resizer */
+  .resizer:hover::after,
+  .resizer:active::after {
+    background: var(--primary-dark-blue);
+    box-shadow: 0 0 15px rgba(37, 99, 235, 0.6);
+  }
+
+  /* Grab handle indicator centered on the line (8px from bottom edge of the resizer) */
   .resizer::before {
     content: '';
     position: absolute;
-    top: 50%;
+    bottom: 8px; /* Aligned exactly on the divider line */
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, 50%); /* Centered both horizontally and vertically on the line */
     width: 40px;
     height: 4px;
     background: var(--primary-blue);
     border-radius: 2px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    z-index: 11; /* Sit above the line */
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+
+  .resizer:hover::before,
+  .resizer:active::before {
+    background: var(--primary-dark-blue);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   }
 
   .content-area {
@@ -953,10 +975,6 @@ body[data-connection-status="offline"] .editor-wrapper::before {
     flex-shrink: 0;
     overflow  : visible !important;
     transition: height 0.3s var(--ease-smooth), min-height 0.3s var(--ease-smooth), max-height 0.3s var(--ease-smooth);
-  }
-
-  .resizer {
-    display: none;
   }
 
   .main-editor {
