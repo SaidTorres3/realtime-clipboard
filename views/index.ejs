@@ -2043,6 +2043,7 @@ Start typing your shared content here...
 
       const fileItems = sortedFiles.map(file => {
         const fileName = file.originalFileName;
+        const escapedFileName = escapeHtml(fileName);
         const isImage = file.isImageFile;
         const isText = file.isTextFile;
         // Check isPDFFile property first, then fall back to file extension check for older files
@@ -2074,15 +2075,15 @@ Start typing your shared content here...
 
         return `
             <div class="file-item ${isImage ? 'has-image' : ''} ${isText ? 'has-text' : ''} ${isPDF ? 'has-pdf' : ''} ${isVideo ? 'has-video' : ''} ${hasMultipleVersions ? 'has-versions' : ''}" 
-                 data-filename="${fileName}" 
+                 data-filename="${escapedFileName}" 
                  data-versions="${totalVersions}">
               <div class="file-info">
                 ${isImage ? `
                   <div class="image-thumbnail" 
-                       data-image-url="${environmentPath}/files/${fileName}"
-                       data-filename="${fileName}">
-                    <img src="${environmentPath}/files/${fileName}" 
-                         alt="${fileName}" 
+                       data-image-url="${environmentPath}/files/${escapedFileName}"
+                       data-filename="${escapedFileName}">
+                    <img src="${environmentPath}/files/${escapedFileName}" 
+                         alt="${escapedFileName}" 
                          class="thumbnail-img"
                          loading="lazy" />
                     <div class="image-overlay">
@@ -2091,8 +2092,8 @@ Start typing your shared content here...
                   </div>
                 ` : isText ? `
                   <div class="text-preview-icon" 
-                       data-preview-url="${environmentPath}/files/${fileName}/preview"
-                       data-filename="${fileName}">
+                       data-preview-url="${environmentPath}/files/${escapedFileName}/preview"
+                       data-filename="${escapedFileName}">
                     <div class="text-icon">
                       <i class="fas fa-file-alt"></i>
                     </div>
@@ -2102,8 +2103,8 @@ Start typing your shared content here...
                   </div>
                 ` : isPDF ? `
                   <div class="pdf-preview-icon" 
-                       data-pdf-url="${environmentPath}/files/${fileName}/pdf-preview"
-                       data-filename="${fileName}">
+                       data-pdf-url="${environmentPath}/files/${escapedFileName}/pdf-preview"
+                       data-filename="${escapedFileName}">
                     <div class="pdf-icon-text">PDF</div>
                     <div class="pdf-overlay">
                       <i class="fas fa-eye"></i>
@@ -2111,8 +2112,8 @@ Start typing your shared content here...
                   </div>
                 ` : isVideo ? `
                   <div class="video-preview-icon" 
-                       data-video-url="${environmentPath}/files/${fileName}"
-                       data-filename="${fileName}">
+                       data-video-url="${environmentPath}/files/${escapedFileName}"
+                       data-filename="${escapedFileName}">
                     <div class="video-icon-text">▶</div>
                     <div class="video-overlay">
                       <i class="fas fa-play"></i>
@@ -2124,11 +2125,11 @@ Start typing your shared content here...
                   </div>
                 `}
                 <div class="file-details">
-                  <a href="${environmentPath}/files/${fileName}"
+                  <a href="${environmentPath}/files/${escapedFileName}"
                      download
                      class="file-name"
-                     title="${fileName}">
-                    ${fileName}
+                     title="${escapedFileName}">
+                    ${escapedFileName}
                   </a>
                   <div class="file-metadata">
                     <span class="file-date" title="${uploadDate}">
@@ -2141,7 +2142,7 @@ Start typing your shared content here...
                     <div class="version-info">
                       <i class="fas fa-history"></i>
                       <span class="version-count">${totalVersions} versions</span>
-                      <button class="btn-versions" onclick="showVersions('${fileName}')" title="View all versions">
+                      <button class="btn-versions" onclick="showVersions('${escapedFileName}')" title="View all versions">
                         <i class="fas fa-chevron-down"></i>
                       </button>
                     </div>
@@ -2154,7 +2155,7 @@ Start typing your shared content here...
                           class="versions-button btn btn-secondary"
                           style="padding: 8px 12px; font-size: 12px; margin-right: 8px;"
                           title="Manage versions"
-                          onclick="showVersions('${fileName}')">
+                          onclick="showVersions('${escapedFileName}')">
                     <i class="fas fa-history"></i>
                   </button>
                 ` : ''}
@@ -2343,16 +2344,18 @@ Start typing your shared content here...
 
         title.innerHTML = `
             <i class="fas fa-history"></i>
-            Versions of "${fileName}"
+            Versions of "${escapeHtml(fileName)}"
           `;
 
         const versionsHtml = versionData.versions.map(version => {
           const isCurrentVersion = version.versionId === versionData.currentVersion.versionId;
+          const escapedFileName = escapeHtml(fileName);
+          const escapedVersionId = escapeHtml(version.versionId);
           return `
               <div class="version-item ${isCurrentVersion ? 'current' : ''}">
                 <div class="version-details">
                   <div class="version-id">
-                    ${version.versionId}
+                    ${escapedVersionId}
                     ${isCurrentVersion ? '<span class="current-badge">Current</span>' : ''}
                   </div>
                   <div class="version-date">
@@ -2366,17 +2369,17 @@ Start typing your shared content here...
                   </div>
                 </div>
                 <div class="version-actions">
-                  <button class="version-btn" onclick="downloadVersion('${fileName}', '${version.versionId}')" title="Download this version">
+                  <button class="version-btn" onclick="downloadVersion('${escapedFileName}', '${escapedVersionId}')" title="Download this version">
                     <i class="fas fa-download"></i>
                     Download
                   </button>
                   ${!isCurrentVersion ? `
-                    <button class="version-btn primary" onclick="promoteVersion('${fileName}', '${version.versionId}')" title="Make this the current version">
+                    <button class="version-btn primary" onclick="promoteVersion('${escapedFileName}', '${escapedVersionId}')" title="Make this the current version">
                       <i class="fas fa-arrow-up"></i>
                       Promote
                     </button>
                   ` : ''}
-                  <button class="version-btn danger" onclick="deleteVersion('${fileName}', '${version.versionId}', ${isCurrentVersion})" title="Delete this version">
+                  <button class="version-btn danger" onclick="deleteVersion('${escapedFileName}', '${escapedVersionId}', ${isCurrentVersion})" title="Delete this version">
                     <i class="fas fa-trash"></i>
                     Delete
                   </button>
